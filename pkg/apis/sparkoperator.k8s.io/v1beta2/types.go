@@ -62,13 +62,12 @@ type RestartPolicy struct {
 	// +optional
 	OnFailureRetries *int32 `json:"onFailureRetries,omitempty"`
 
-	// OnSubmissionFailureRetryInterval is the interval between retries on failed submissions.
-	// Interval to wait between successive retries of a failed application.
+	// OnSubmissionFailureRetryInterval is the interval in seconds between retries on failed submissions.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	OnSubmissionFailureRetryInterval *int64 `json:"onSubmissionFailureRetryInterval,omitempty"`
 
-	// OnFailureRetryInterval is the interval between retries on failed runs.
+	// OnFailureRetryInterval is the interval in seconds between retries on failed runs.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	OnFailureRetryInterval *int64 `json:"onFailureRetryInterval,omitempty"`
@@ -278,7 +277,6 @@ type SparkApplicationSpec struct {
 	// BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
 	// +optional
 	BatchSchedulerOptions *BatchSchedulerConfiguration `json:"batchSchedulerOptions,omitempty"`
-	// SparkUIOptions provides ui control
 	// +optional
 	SparkUIOptions *SparkUIConfiguration `json:"sparkUIOptions,omitempty"`
 }
@@ -337,6 +335,18 @@ type ApplicationState struct {
 	State        ApplicationStateType `json:"state"`
 	ErrorMessage string               `json:"errorMessage,omitempty"`
 }
+
+// DriverState tells the current state of a spark driver.
+type DriverState string
+
+// Different states a spark driver may have.
+const (
+	DriverPendingState   DriverState = "PENDING"
+	DriverRunningState   DriverState = "RUNNING"
+	DriverCompletedState DriverState = "COMPLETED"
+	DriverFailedState    DriverState = "FAILED"
+	DriverUnknownState   DriverState = "UNKNOWN"
+)
 
 // ExecutorState tells the current state of an executor.
 type ExecutorState string
@@ -430,14 +440,14 @@ type SparkPodSpec struct {
 	// +optional
 	Env []apiv1.EnvVar `json:"env,omitempty"`
 	// EnvVars carries the environment variables to add to the pod.
-	// Deprecated.
+	// Deprecated. Consider using `env` instead.
 	// +optional
 	EnvVars map[string]string `json:"envVars,omitempty"`
 	// EnvFrom is a list of sources to populate environment variables in the container.
 	// +optional
 	EnvFrom []apiv1.EnvFromSource `json:"envFrom,omitempty"`
 	// EnvSecretKeyRefs holds a mapping from environment variable names to SecretKeyRefs.
-	// Deprecated.
+	// Deprecated. Consider using `env` instead.
 	// +optional
 	EnvSecretKeyRefs map[string]NameKey `json:"envSecretKeyRefs,omitempty"`
 	// Labels are the Kubernetes labels to be added to the pod.
@@ -487,12 +497,15 @@ type SparkPodSpec struct {
 	// support kata container
 	// +optional
 	RuntimeClassName string `json:"runtimeClassName,omitempty"`
-	// Termination grace period seconds for the pod
-	// +optional
-	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 	// Resources to override
 	// +optional
 	CustomResources apiv1.ResourceRequirements `json:"customResources,omitempty"`
+	// Termination grace periond seconds for the pod
+	// +optional
+	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
+	// ServiceAccount is the name of the custom Kubernetes service account used by the pod.
+	// +optional
+	ServiceAccount *string `json:"serviceAccount,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
@@ -509,10 +522,6 @@ type DriverSpec struct {
 	// Maps to `spark.kubernetes.driver.request.cores` that is available since Spark 3.0.
 	// +optional
 	CoreRequest *string `json:"coreRequest,omitempty"`
-	// ServiceAccount is the name of the Kubernetes service account used by the driver pod
-	// when requesting executor pods from the API server.
-	// +optional
-	ServiceAccount *string `json:"serviceAccount,omitempty"`
 	// JavaOptions is a string of extra JVM options to pass to the driver. For instance,
 	// GC settings or other logging.
 	// +optional
@@ -605,6 +614,10 @@ type MonitoringSpec struct {
 	// +optional
 	// If not specified, the content in spark-docker/conf/metrics.properties will be used.
 	MetricsProperties *string `json:"metricsProperties,omitempty"`
+	// MetricsPropertiesFile is the container local path of file metrics.properties for configuring the Spark metric system.
+	// +optional
+	// If not specified, value /etc/metrics/conf/metrics.properties will be used.
+	MetricsPropertiesFile *string `json:"metricsPropertiesFile,omitempty"`
 	// Prometheus is for configuring the Prometheus JMX exporter.
 	// +optional
 	Prometheus *PrometheusSpec `json:"prometheus,omitempty"`
@@ -649,6 +662,20 @@ func (s *SparkApplication) HasPrometheusConfigFile() bool {
 	return s.PrometheusMonitoringEnabled() &&
 		s.Spec.Monitoring.Prometheus.ConfigFile != nil &&
 		*s.Spec.Monitoring.Prometheus.ConfigFile != ""
+}
+
+// HasPrometheusConfig returns if Prometheus monitoring defines metricsProperties in the spec.
+func (s *SparkApplication) HasMetricsProperties() bool {
+	return s.PrometheusMonitoringEnabled() &&
+		s.Spec.Monitoring.MetricsProperties != nil &&
+		*s.Spec.Monitoring.MetricsProperties != ""
+}
+
+// HasPrometheusConfigFile returns if Monitoring defines metricsPropertiesFile in the spec.
+func (s *SparkApplication) HasMetricsPropertiesFile() bool {
+	return s.PrometheusMonitoringEnabled() &&
+		s.Spec.Monitoring.MetricsPropertiesFile != nil &&
+		*s.Spec.Monitoring.MetricsPropertiesFile != ""
 }
 
 // ExposeDriverMetrics returns if driver metrics should be exposed.

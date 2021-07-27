@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.2.5
+    controller-gen.kubebuilder.io/version: (unknown)
   creationTimestamp: null
   name: sparkapplications.sparkoperator.k8s.io
 spec:
@@ -346,25 +346,6 @@ spec:
                   format: int32
                   minimum: 1
                   type: integer
-                customResources:
-                  properties:
-                    limits:
-                      additionalProperties:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
-                      type: object
-                    requests:
-                      additionalProperties:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
-                      type: object
-                  type: object
                 dnsConfig:
                   properties:
                     nameservers:
@@ -385,8 +366,6 @@ spec:
                         type: string
                       type: array
                   type: object
-                dnsPolicy:
-                  type: string
                 env:
                   items:
                     properties:
@@ -912,6 +891,80 @@ spec:
                               user:
                                 type: string
                             type: object
+                          windowsOptions:
+                            properties:
+                              gmsaCredentialSpec:
+                                type: string
+                              gmsaCredentialSpecName:
+                                type: string
+                              runAsUserName:
+                                type: string
+                            type: object
+                        type: object
+                      startupProbe:
+                        properties:
+                          exec:
+                            properties:
+                              command:
+                                items:
+                                  type: string
+                                type: array
+                            type: object
+                          failureThreshold:
+                            format: int32
+                            type: integer
+                          httpGet:
+                            properties:
+                              host:
+                                type: string
+                              httpHeaders:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                    value:
+                                      type: string
+                                  required:
+                                  - name
+                                  - value
+                                  type: object
+                                type: array
+                              path:
+                                type: string
+                              port:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                x-kubernetes-int-or-string: true
+                              scheme:
+                                type: string
+                            required:
+                            - port
+                            type: object
+                          initialDelaySeconds:
+                            format: int32
+                            type: integer
+                          periodSeconds:
+                            format: int32
+                            type: integer
+                          successThreshold:
+                            format: int32
+                            type: integer
+                          tcpSocket:
+                            properties:
+                              host:
+                                type: string
+                              port:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                x-kubernetes-int-or-string: true
+                            required:
+                            - port
+                            type: object
+                          timeoutSeconds:
+                            format: int32
+                            type: integer
                         type: object
                       stdin:
                         type: boolean
@@ -947,6 +1000,8 @@ spec:
                             readOnly:
                               type: boolean
                             subPath:
+                              type: string
+                            subPathExpr:
                               type: string
                           required:
                           - mountPath
@@ -1072,16 +1127,12 @@ spec:
                   type: string
                 memoryOverhead:
                   type: string
-                nodeName:
-                  type: string
                 nodeSelector:
                   additionalProperties:
                     type: string
                   type: object
                 podName:
                   pattern: '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
-                  type: string
-                runtimeClassName:
                   type: string
                 schedulerName:
                   type: string
@@ -1141,6 +1192,15 @@ spec:
                         - value
                         type: object
                       type: array
+                    windowsOptions:
+                      properties:
+                        gmsaCredentialSpec:
+                          type: string
+                        gmsaCredentialSpecName:
+                          type: string
+                        runAsUserName:
+                          type: string
+                      type: object
                   type: object
                 serviceAccount:
                   type: string
@@ -1557,6 +1617,80 @@ spec:
                               user:
                                 type: string
                             type: object
+                          windowsOptions:
+                            properties:
+                              gmsaCredentialSpec:
+                                type: string
+                              gmsaCredentialSpecName:
+                                type: string
+                              runAsUserName:
+                                type: string
+                            type: object
+                        type: object
+                      startupProbe:
+                        properties:
+                          exec:
+                            properties:
+                              command:
+                                items:
+                                  type: string
+                                type: array
+                            type: object
+                          failureThreshold:
+                            format: int32
+                            type: integer
+                          httpGet:
+                            properties:
+                              host:
+                                type: string
+                              httpHeaders:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                    value:
+                                      type: string
+                                  required:
+                                  - name
+                                  - value
+                                  type: object
+                                type: array
+                              path:
+                                type: string
+                              port:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                x-kubernetes-int-or-string: true
+                              scheme:
+                                type: string
+                            required:
+                            - port
+                            type: object
+                          initialDelaySeconds:
+                            format: int32
+                            type: integer
+                          periodSeconds:
+                            format: int32
+                            type: integer
+                          successThreshold:
+                            format: int32
+                            type: integer
+                          tcpSocket:
+                            properties:
+                              host:
+                                type: string
+                              port:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                x-kubernetes-int-or-string: true
+                            required:
+                            - port
+                            type: object
+                          timeoutSeconds:
+                            format: int32
+                            type: integer
                         type: object
                       stdin:
                         type: boolean
@@ -1592,6 +1726,8 @@ spec:
                             readOnly:
                               type: boolean
                             subPath:
+                              type: string
+                            subPathExpr:
                               type: string
                           required:
                           - mountPath
@@ -1635,6 +1771,8 @@ spec:
                       readOnly:
                         type: boolean
                       subPath:
+                        type: string
+                      subPathExpr:
                         type: string
                     required:
                     - mountPath
@@ -1930,25 +2068,6 @@ spec:
                   format: int32
                   minimum: 1
                   type: integer
-                customResources:
-                  properties:
-                    limits:
-                      additionalProperties:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
-                      type: object
-                    requests:
-                      additionalProperties:
-                        anyOf:
-                        - type: integer
-                        - type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
-                      type: object
-                  type: object
                 deleteOnTermination:
                   type: boolean
                 dnsConfig:
@@ -1971,8 +2090,6 @@ spec:
                         type: string
                       type: array
                   type: object
-                dnsPolicy:
-                  type: string
                 env:
                   items:
                     properties:
@@ -2498,6 +2615,80 @@ spec:
                               user:
                                 type: string
                             type: object
+                          windowsOptions:
+                            properties:
+                              gmsaCredentialSpec:
+                                type: string
+                              gmsaCredentialSpecName:
+                                type: string
+                              runAsUserName:
+                                type: string
+                            type: object
+                        type: object
+                      startupProbe:
+                        properties:
+                          exec:
+                            properties:
+                              command:
+                                items:
+                                  type: string
+                                type: array
+                            type: object
+                          failureThreshold:
+                            format: int32
+                            type: integer
+                          httpGet:
+                            properties:
+                              host:
+                                type: string
+                              httpHeaders:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                    value:
+                                      type: string
+                                  required:
+                                  - name
+                                  - value
+                                  type: object
+                                type: array
+                              path:
+                                type: string
+                              port:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                x-kubernetes-int-or-string: true
+                              scheme:
+                                type: string
+                            required:
+                            - port
+                            type: object
+                          initialDelaySeconds:
+                            format: int32
+                            type: integer
+                          periodSeconds:
+                            format: int32
+                            type: integer
+                          successThreshold:
+                            format: int32
+                            type: integer
+                          tcpSocket:
+                            properties:
+                              host:
+                                type: string
+                              port:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                x-kubernetes-int-or-string: true
+                            required:
+                            - port
+                            type: object
+                          timeoutSeconds:
+                            format: int32
+                            type: integer
                         type: object
                       stdin:
                         type: boolean
@@ -2534,6 +2725,8 @@ spec:
                               type: boolean
                             subPath:
                               type: string
+                            subPathExpr:
+                              type: string
                           required:
                           - mountPath
                           - name
@@ -2559,14 +2752,10 @@ spec:
                   type: string
                 memoryOverhead:
                   type: string
-                nodeName:
-                  type: string
                 nodeSelector:
                   additionalProperties:
                     type: string
                   type: object
-                runtimeClassName:
-                  type: string
                 schedulerName:
                   type: string
                 secrets:
@@ -2625,7 +2814,18 @@ spec:
                         - value
                         type: object
                       type: array
+                    windowsOptions:
+                      properties:
+                        gmsaCredentialSpec:
+                          type: string
+                        gmsaCredentialSpecName:
+                          type: string
+                        runAsUserName:
+                          type: string
+                      type: object
                   type: object
+                serviceAccount:
+                  type: string
                 sidecars:
                   items:
                     properties:
@@ -3039,6 +3239,80 @@ spec:
                               user:
                                 type: string
                             type: object
+                          windowsOptions:
+                            properties:
+                              gmsaCredentialSpec:
+                                type: string
+                              gmsaCredentialSpecName:
+                                type: string
+                              runAsUserName:
+                                type: string
+                            type: object
+                        type: object
+                      startupProbe:
+                        properties:
+                          exec:
+                            properties:
+                              command:
+                                items:
+                                  type: string
+                                type: array
+                            type: object
+                          failureThreshold:
+                            format: int32
+                            type: integer
+                          httpGet:
+                            properties:
+                              host:
+                                type: string
+                              httpHeaders:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                    value:
+                                      type: string
+                                  required:
+                                  - name
+                                  - value
+                                  type: object
+                                type: array
+                              path:
+                                type: string
+                              port:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                x-kubernetes-int-or-string: true
+                              scheme:
+                                type: string
+                            required:
+                            - port
+                            type: object
+                          initialDelaySeconds:
+                            format: int32
+                            type: integer
+                          periodSeconds:
+                            format: int32
+                            type: integer
+                          successThreshold:
+                            format: int32
+                            type: integer
+                          tcpSocket:
+                            properties:
+                              host:
+                                type: string
+                              port:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                x-kubernetes-int-or-string: true
+                            required:
+                            - port
+                            type: object
+                          timeoutSeconds:
+                            format: int32
+                            type: integer
                         type: object
                       stdin:
                         type: boolean
@@ -3074,6 +3348,8 @@ spec:
                             readOnly:
                               type: boolean
                             subPath:
+                              type: string
+                            subPathExpr:
                               type: string
                           required:
                           - mountPath
@@ -3118,6 +3394,8 @@ spec:
                         type: boolean
                       subPath:
                         type: string
+                      subPathExpr:
+                        type: string
                     required:
                     - mountPath
                     - name
@@ -3160,6 +3438,8 @@ spec:
                   type: boolean
                 metricsProperties:
                   type: string
+                metricsPropertiesFile:
+                  type: string
                 prometheus:
                   properties:
                     configFile:
@@ -3184,8 +3464,6 @@ spec:
               additionalProperties:
                 type: string
               type: object
-            proxyUser:
-              type: string
             pythonVersion:
               enum:
               - "2"
@@ -3227,8 +3505,6 @@ spec:
               type: string
             sparkUIOptions:
               properties:
-                clusterIP:
-                  type: string
                 ingressAnnotations:
                   additionalProperties:
                     type: string
@@ -3247,8 +3523,6 @@ spec:
                 servicePort:
                   format: int32
                   type: integer
-                serviceType:
-                  type: string
               type: object
             sparkVersion:
               type: string
@@ -3371,6 +3645,26 @@ spec:
                         type: string
                       optional:
                         type: boolean
+                    type: object
+                  csi:
+                    properties:
+                      driver:
+                        type: string
+                      fsType:
+                        type: string
+                      nodePublishSecretRef:
+                        properties:
+                          name:
+                            type: string
+                        type: object
+                      readOnly:
+                        type: boolean
+                      volumeAttributes:
+                        additionalProperties:
+                          type: string
+                        type: object
+                    required:
+                    - driver
                     type: object
                   downwardAPI:
                     properties:
@@ -3710,6 +4004,8 @@ spec:
                         type: boolean
                       registry:
                         type: string
+                      tenant:
+                        type: string
                       user:
                         type: string
                       volume:
@@ -3852,19 +4148,7 @@ spec:
               type: object
             driverInfo:
               properties:
-                creationTimestamp:
-                  format: date-time
-                  nullable: true
-                  type: string
-                podIp:
-                  type: string
                 podName:
-                  type: string
-                podState:
-                  type: string
-                terminationTime:
-                  format: date-time
-                  nullable: true
                   type: string
                 webUIAddress:
                   type: string
@@ -3916,5 +4200,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: []
-  storedVersions: []
+  conditions: null
+  storedVersions: null

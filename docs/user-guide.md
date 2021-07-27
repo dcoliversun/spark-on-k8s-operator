@@ -28,7 +28,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Using Tolerations](#using-tolerations)
     * [Using Pod Security Context](#using-pod-security-context)
     * [Using Sidecar Containers](#using-sidecar-containers)
-    * [Using Init-Containers](#using-init-Containers)
+    * [Using Init-Containers](#using-init-containers)
     * [Using Volume For Scratch Space](#using-volume-for-scratch-space)
     * [Using Termination Grace Period](#using-termination-grace-period)
     * [Using Container LifeCycle Hooks](#using-container-lifecycle-hooks)
@@ -39,8 +39,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Deleting a SparkApplication](#deleting-a-sparkapplication)
     * [Updating a SparkApplication](#updating-a-sparkapplication)
     * [Checking a SparkApplication](#checking-a-sparkapplication)
-    * [Configuring Automatic Application Restart](#configuring-automatic-application-restart)
-    * [Configuring Automatic Application Re-submission on Submission Failures](#configuring-automatic-application-re-submission-on-submission-failures)
+    * [Configuring Automatic Application Restart and Failure Handling](#configuring-automatic-application-restart-and-failure-handling)
     * [Setting TTL for a SparkApplication](#setting-ttl-for-a-sparkapplication)
 * [Running Spark Applications on a Schedule using a ScheduledSparkApplication](#running-spark-applications-on-a-schedule-using-a-scheduledsparkapplication)
 * [Enabling Leader Election for High Availability](#enabling-leader-election-for-high-availability)
@@ -437,7 +436,7 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 
 ### Using Sidecar Containers
 
-A `SparkApplication` can specify one or more optional sidecar containers for the driver or executor pod, using the optional field `.spec.driver.sidecars` or `.spec.executor.containers`. The specification of each sidecar container follows the [Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#container-v1-core) API definition. Below is an example:
+A `SparkApplication` can specify one or more optional sidecar containers for the driver or executor pod, using the optional field `.spec.driver.sidecars` or `.spec.executor.sidecars`. The specification of each sidecar container follows the [Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#container-v1-core) API definition. Below is an example:
 
 ```yaml
 spec:
@@ -497,20 +496,22 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 
 ### Using Volume For Scratch Space
 By default, Spark uses temporary scratch space to spill data to disk during shuffles and other operations.
-In order to use volume, volume's name should starts with `spark-local-dir-`.
+The scratch directory defaults to `/tmp` of the container.
+If that storage isn't enough or you want to use a specific path, you can use one or more volumes.
+The volume names should start with `spark-local-dir-`.
 
 
-```
+```yaml
 spec:
   volumes:
     - name: "spark-local-dir-1"
       hostPath:
         path: "/tmp/spark-local-dir"
-    executor:
-      volumeMounts:
-        - name: "spark-local-dir-1"
-          mountPath: "/tmp/spark-local-dir"
-      ...
+  executor:
+    volumeMounts:
+      - name: "spark-local-dir-1"
+        mountPath: "/tmp/spark-local-dir"
+    ...
 ```
 
 Then you will get `SPARK_LOCAL_DIRS` set to `/tmp/spark-local-dir` in the pod like below.
@@ -518,7 +519,7 @@ Then you will get `SPARK_LOCAL_DIRS` set to `/tmp/spark-local-dir` in the pod li
 ```yaml
 Environment:
   SPARK_USER:                 root
-  SPARK_DRIVER_BIND_ADDRESS:   (v1:status.podIP)
+  SPARK_DRIVER_BIND_ADDRESS:  (v1:status.podIP)
   SPARK_LOCAL_DIRS:           /tmp/spark-local-dir
   SPARK_CONF_DIR:             /opt/spark/conf
 ```
@@ -526,7 +527,7 @@ Environment:
 
 > Note: Multiple volumes can be used together
 
-```
+```yaml
 spec:
   volumes:
     - name: "spark-local-dir-1"
@@ -535,16 +536,16 @@ spec:
     - name: "spark-local-dir-2"
       hostPath:
         path: "/mnt/dir2"
-    executor:
-      volumeMounts:
-        - name: "spark-local-dir-1"
-          mountPath: "/tmp/dir1"
-        - name: "spark-local-dir-1"
-          mountPath: "/tmp/dir2"
-      ...
+  executor:
+    volumeMounts:
+      - name: "spark-local-dir-1"
+        mountPath: "/tmp/dir1"
+      - name: "spark-local-dir-2"
+        mountPath: "/tmp/dir2"
+    ...
 ```
 
-> Note: Besides `HostPath`, `PersistentVolumeClaim` can be used as well.
+> Note: Besides `hostPath`, `persistentVolumeClaim` can be used as well.
 
 ```yaml
 spec:
@@ -596,7 +597,7 @@ spec:
   mainApplicationFile: local:///opt/spark/examples/src/main/python/pyfiles.py
 ```
 
-Some PySpark applications need additional Python packages to run. Such dependencies are specified using the optional field `.spec.deps.pyFiles` , which translates to the `--py-files` option of the spark-submit command.
+Some PySpark applications need additional Python packages to run. Such dependencies are specified using the optional field `.spec.deps.pyFiles`, which translates to the `--py-files` option of the spark-submit command.
 
 ```yaml
 spec:
@@ -617,7 +618,7 @@ Note that Python binding for PySpark is available in Apache Spark 2.4.
 
 ### Monitoring
 
-The operator supports using the Spark metric system to expose metrics to a variety of sinks. Particularly, it is able to automatically configure the metric system to expose metrics to [Prometheus](https://prometheus.io/). Specifically, the field `.spec.monitoring` specifies how application monitoring is handled and particularly how metrics are to be reported. The metric system is configured through the configuration file `metrics.properties`, which gets its content from the field `.spec.monitoring.metricsProperties`. The content of [metrics.properties](../spark-docker/conf/metrics.properties) will be used by default if `.spec.monitoring.metricsProperties` is not specified. You can choose to enable or disable reporting driver and executor metrics using the fields `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`, respectively.
+The operator supports using the Spark metric system to expose metrics to a variety of sinks. Particularly, it is able to automatically configure the metric system to expose metrics to [Prometheus](https://prometheus.io/). Specifically, the field `.spec.monitoring` specifies how application monitoring is handled and particularly how metrics are to be reported. The metric system is configured through the configuration file `metrics.properties`, which gets its content from the field `.spec.monitoring.metricsProperties`. The content of [metrics.properties](../spark-docker/conf/metrics.properties) will be used by default if `.spec.monitoring.metricsProperties` is not specified. `.spec.monitoring.metricsPropertiesFile` overwrite the value `spark.metrics.conf` in spark.properties, and will not use content from `.spec.monitoring.metricsProperties`. You can choose to enable or disable reporting driver and executor metrics using the fields `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`, respectively.
 
 Further, the field `.spec.monitoring.prometheus` specifies how metrics are exposed to Prometheus using the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter). When `.spec.monitoring.prometheus` is specified, the operator automatically configures the JMX exporter to run as a Java agent. The only required field of `.spec.monitoring.prometheus` is `jmxExporterJar`, which specified the path to the Prometheus JMX exporter Java agent jar in the container. If you use the image `gcr.io/spark-operator/spark:v2.4.5-gcs-prometheus`, the jar is located at `/prometheus/jmx_prometheus_javaagent-0.11.0.jar`. The field `.spec.monitoring.prometheus.port` specifies the port the JMX exporter Java agent binds to and defaults to `8090` if not specified. The field `.spec.monitoring.prometheus.configuration` specifies the content of the configuration to be used with the JMX exporter. The content of [prometheus.yaml](../spark-docker/conf/prometheus.yaml) will be used by default if `.spec.monitoring.prometheus.configuration` is not specified.    
 
@@ -625,7 +626,7 @@ Below is an example that shows how to configure the metric system to expose metr
 
 ```yaml
 spec:
-  dep:
+  deps:
     jars:
     - http://central.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.11.0/jmx_prometheus_javaagent-0.11.0.jar
   monitoring:
@@ -680,14 +681,14 @@ client so effectively the driver gets restarted.
 
 ### Setting TTL for a SparkApplication
 
-The `v1beta2` version of the `SparkApplication` API starts having TTL support for `SparkApplication`s through a new optional field named `TimeToLiveSeconds`, which if set, defines the Time-To-Live (TTL) duration in seconds for a SparkAplication after its termination. The `SparkApplication` object will be garbage collected if the current time is more than the `TimeToLiveSeconds` since its termination. The example below illustrates how to use the field:
+The `v1beta2` version of the `SparkApplication` API starts having TTL support for `SparkApplication`s through a new optional field named `.spec.timeToLiveSeconds`, which if set, defines the Time-To-Live (TTL) duration in seconds for a SparkAplication after its termination. The `SparkApplication` object will be garbage collected if the current time is more than the `.spec.timeToLiveSeconds` since its termination. The example below illustrates how to use the field:
 
 ```yaml
 spec:
   timeToLiveSeconds: 3600
 ```
 
-Note that this feature requires that informer cache resync to be enabled, which is true by default with a resync internal of 30 seconds. You can change the resync interval by setting the flag `-resync-interval=<internval>`.
+Note that this feature requires that informer cache resync to be enabled, which is true by default with a resync internal of 30 seconds. You can change the resync interval by setting the flag `-resync-interval=<interval>`.
 
 ## Running Spark Applications on a Schedule using a ScheduledSparkApplication
 
@@ -740,7 +741,7 @@ The operator supports a high-availability (HA) mode, in which there can be more 
 | ------------- | ------------- | ------------- |
 | `leader-election` | `false` | Whether to enable leader election (or the HA mode) or not. |
 | `leader-election-lock-namespace` | `spark-operator` | Kubernetes namespace of the lock resource used for leader election. |
-| `leader-election-lock-name` | `spark-operator-lock` | Name of the ock resource used for leader election. |
+| `leader-election-lock-name` | `spark-operator-lock` | Name of the lock resource used for leader election. |
 | `leader-election-lease-duration` | 15 seconds | Leader election lease duration. |
 | `leader-election-renew-deadline` | 14 seconds | Leader election renew deadline. |
 | `leader-election-retry-period` | 4 seconds | Leader election retry period. |

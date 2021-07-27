@@ -572,6 +572,20 @@ BatchSchedulerConfiguration
 <p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>sparkUIOptions</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">
+SparkUIConfiguration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -897,19 +911,6 @@ Maps to <code>spark.kubernetes.driver.request.cores</code> that is available sin
 </tr>
 <tr>
 <td>
-<code>serviceAccount</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ServiceAccount is the name of the Kubernetes service account used by the driver pod
-when requesting executor pods from the API server.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>javaOptions</code></br>
 <em>
 string
@@ -921,8 +922,27 @@ string
 GC settings or other logging.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>lifecycle</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#lifecycle-v1-core">
+Kubernetes core/v1.Lifecycle
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Lifecycle for running preStop or postStart commands</p>
+</td>
+</tr>
 </tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1beta2.DriverState">DriverState
+(<code>string</code> alias)</p></h3>
+<p>
+<p>DriverState tells the current state of a spark driver.</p>
+</p>
 <h3 id="sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec
 </h3>
 <p>
@@ -1107,6 +1127,19 @@ string
 <em>(Optional)</em>
 <p>MetricsProperties is the content of a custom metrics.properties for configuring the Spark metric system.
 If not specified, the content in spark-docker/conf/metrics.properties will be used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>metricsPropertiesFile</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MetricsPropertiesFile is the container local path of file metrics.properties for configuring the Spark metric system.
+If not specified, value /etc/metrics/conf/metrics.properties will be used.</p>
 </td>
 </tr>
 <tr>
@@ -1340,8 +1373,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>OnSubmissionFailureRetryInterval is the interval between retries on failed submissions.
-Interval to wait between successive retries of a failed application.</p>
+<p>OnSubmissionFailureRetryInterval is the interval in seconds between retries on failed submissions.</p>
 </td>
 </tr>
 <tr>
@@ -1353,7 +1385,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>OnFailureRetryInterval is the interval between retries on failed runs.</p>
+<p>OnFailureRetryInterval is the interval in seconds between retries on failed runs.</p>
 </td>
 </tr>
 </tbody>
@@ -2000,6 +2032,20 @@ BatchSchedulerConfiguration
 <p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>sparkUIOptions</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">
+SparkUIConfiguration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">SparkApplicationStatus
@@ -2286,7 +2332,21 @@ map[string]string
 <td>
 <em>(Optional)</em>
 <p>EnvVars carries the environment variables to add to the pod.
-Deprecated.</p>
+Deprecated. Consider using <code>env</code> instead.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>envFrom</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#envfromsource-v1-core">
+[]Kubernetes core/v1.EnvFromSource
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>EnvFrom is a list of sources to populate environment variables in the container.</p>
 </td>
 </tr>
 <tr>
@@ -2301,7 +2361,7 @@ map[string]github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkop
 <td>
 <em>(Optional)</em>
 <p>EnvSecretKeyRefs holds a mapping from environment variable names to SecretKeyRefs.
-Deprecated.</p>
+Deprecated. Consider using <code>env</code> instead.</p>
 </td>
 </tr>
 <tr>
@@ -2463,10 +2523,92 @@ Kubernetes core/v1.PodDNSConfig
 <p>DnsConfig dns settings for the pod, following the Kubernetes specifications.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>terminationGracePeriodSeconds</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Termination grace periond seconds for the pod</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAccount</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServiceAccount is the name of the custom Kubernetes service account used by the pod.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">SparkUIConfiguration
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+</p>
+<p>
+<p>Specific SparkUI config parameters</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>servicePort</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServicePort allows configuring the port at service level that might be different from the targetPort.
+TargetPort should be the same as the one defined in spark.ui.port</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ingressAnnotations</code></br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx as ingress.class</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ingressTLS</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#ingresstls-v1beta1-extensions">
+[]Kubernetes extensions/v1beta1.IngressTLS
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TlsHosts is useful If we need to declare SSL certificates to the ingress object</p>
+</td>
+</tr>
 </tbody>
 </table>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>abe1af3</code>.
+on git commit <code>43fb5e7</code>.
 </em></p>

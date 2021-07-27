@@ -379,7 +379,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		},
 	}
 
-	mutatingWebhook := v1beta1.Webhook{
+	mutatingWebhook := v1beta1.MutatingWebhook{
 		Name:  webhookName,
 		Rules: mutatingRules,
 		ClientConfig: v1beta1.WebhookClientConfig{
@@ -391,7 +391,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 
 	}
 
-	validatingWebhook := v1beta1.Webhook{
+	validatingWebhook := v1beta1.ValidatingWebhook{
 		Name:  quotaWebhookName,
 		Rules: validatingRules,
 		ClientConfig: v1beta1.WebhookClientConfig{
@@ -402,8 +402,8 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		NamespaceSelector: wh.selector,
 	}
 
-	mutatingWebhooks := []v1beta1.Webhook{mutatingWebhook}
-	validatingWebhooks := []v1beta1.Webhook{validatingWebhook}
+	mutatingWebhooks := []v1beta1.MutatingWebhook{mutatingWebhook}
+	validatingWebhooks := []v1beta1.ValidatingWebhook{validatingWebhook}
 
 	mutatingExisting, mutatingGetErr := mwcClient.Get(webhookConfigName, metav1.GetOptions{})
 	if mutatingGetErr != nil {

@@ -128,7 +128,6 @@ func createSparkUIService(
 	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.ServiceType != nil {
 		serviceType = *app.Spec.SparkUIOptions.ServiceType
 	}
-
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            getDefaultUIServiceName(app),

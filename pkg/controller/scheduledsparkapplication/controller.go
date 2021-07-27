@@ -172,9 +172,11 @@ func (c *Controller) syncScheduledSparkApplication(key string) error {
 		status.ScheduleState = v1beta2.ScheduledState
 		now := c.clock.Now()
 		nextRunTime := status.NextRun.Time
-		if nextRunTime.IsZero() {
+		// if we updated the schedule for an earlier execution - those changes need to be reflected
+		updatedNextRunTime := schedule.Next(now)
+		if nextRunTime.IsZero() || updatedNextRunTime.Before(nextRunTime) {
 			// The first run of the application.
-			nextRunTime = schedule.Next(now)
+			nextRunTime = updatedNextRunTime
 			status.NextRun = metav1.NewTime(nextRunTime)
 		}
 		if nextRunTime.Before(now) {
@@ -247,6 +249,7 @@ func (c *Controller) createSparkApplication(
 		Name:       scheduledApp.Name,
 		UID:        scheduledApp.UID,
 	})
+	app.ObjectMeta.Namespace = scheduledApp.Namespace
 	app.ObjectMeta.Labels = make(map[string]string)
 	for key, value := range scheduledApp.Labels {
 		app.ObjectMeta.Labels[key] = value
