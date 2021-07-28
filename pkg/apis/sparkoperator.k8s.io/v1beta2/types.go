@@ -279,6 +279,9 @@ type SparkApplicationSpec struct {
 	BatchSchedulerOptions *BatchSchedulerConfiguration `json:"batchSchedulerOptions,omitempty"`
 	// +optional
 	SparkUIOptions *SparkUIConfiguration `json:"sparkUIOptions,omitempty"`
+	// +optional
+	// one pod on pvc
+	VolumeClaimTemplates []apiv1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 }
 
 // BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application

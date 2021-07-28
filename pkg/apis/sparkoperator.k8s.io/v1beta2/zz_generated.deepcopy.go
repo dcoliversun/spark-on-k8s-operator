@@ -662,6 +662,13 @@ func (in *SparkApplicationSpec) DeepCopyInto(out *SparkApplicationSpec) {
 		*out = new(SparkUIConfiguration)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.VolumeClaimTemplates != nil {
+		in, out := &in.VolumeClaimTemplates, &out.VolumeClaimTemplates
+		*out = make([]v1.PersistentVolumeClaim, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 

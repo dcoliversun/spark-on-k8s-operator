@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: (unknown)
+    controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
   name: sparkapplications.sparkoperator.k8s.io
 spec:
@@ -346,6 +346,25 @@ spec:
                   format: int32
                   minimum: 1
                   type: integer
+                customResources:
+                  properties:
+                    limits:
+                      additionalProperties:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      type: object
+                    requests:
+                      additionalProperties:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      type: object
+                  type: object
                 dnsConfig:
                   properties:
                     nameservers:
@@ -366,6 +385,8 @@ spec:
                         type: string
                       type: array
                   type: object
+                dnsPolicy:
+                  type: string
                 env:
                   items:
                     properties:
@@ -1127,12 +1148,16 @@ spec:
                   type: string
                 memoryOverhead:
                   type: string
+                nodeName:
+                  type: string
                 nodeSelector:
                   additionalProperties:
                     type: string
                   type: object
                 podName:
                   pattern: '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
+                  type: string
+                runtimeClassName:
                   type: string
                 schedulerName:
                   type: string
@@ -2068,6 +2093,25 @@ spec:
                   format: int32
                   minimum: 1
                   type: integer
+                customResources:
+                  properties:
+                    limits:
+                      additionalProperties:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      type: object
+                    requests:
+                      additionalProperties:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                      type: object
+                  type: object
                 deleteOnTermination:
                   type: boolean
                 dnsConfig:
@@ -2090,6 +2134,8 @@ spec:
                         type: string
                       type: array
                   type: object
+                dnsPolicy:
+                  type: string
                 env:
                   items:
                     properties:
@@ -2752,10 +2798,14 @@ spec:
                   type: string
                 memoryOverhead:
                   type: string
+                nodeName:
+                  type: string
                 nodeSelector:
                   additionalProperties:
                     type: string
                   type: object
+                runtimeClassName:
+                  type: string
                 schedulerName:
                   type: string
                 secrets:
@@ -3464,6 +3514,8 @@ spec:
               additionalProperties:
                 type: string
               type: object
+            proxyUser:
+              type: string
             pythonVersion:
               enum:
               - "2"
@@ -3505,6 +3557,8 @@ spec:
               type: string
             sparkUIOptions:
               properties:
+                clusterIP:
+                  type: string
                 ingressAnnotations:
                   additionalProperties:
                     type: string
@@ -3523,6 +3577,8 @@ spec:
                 servicePort:
                   format: int32
                   type: integer
+                serviceType:
+                  type: string
               type: object
             sparkVersion:
               type: string
@@ -3536,6 +3592,123 @@ spec:
               - Scala
               - R
               type: string
+            volumeClaimTemplates:
+              items:
+                properties:
+                  apiVersion:
+                    type: string
+                  kind:
+                    type: string
+                  metadata:
+                    type: object
+                  spec:
+                    properties:
+                      accessModes:
+                        items:
+                          type: string
+                        type: array
+                      dataSource:
+                        properties:
+                          apiGroup:
+                            type: string
+                          kind:
+                            type: string
+                          name:
+                            type: string
+                        required:
+                        - kind
+                        - name
+                        type: object
+                      resources:
+                        properties:
+                          limits:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            type: object
+                          requests:
+                            additionalProperties:
+                              anyOf:
+                              - type: integer
+                              - type: string
+                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                              x-kubernetes-int-or-string: true
+                            type: object
+                        type: object
+                      selector:
+                        properties:
+                          matchExpressions:
+                            items:
+                              properties:
+                                key:
+                                  type: string
+                                operator:
+                                  type: string
+                                values:
+                                  items:
+                                    type: string
+                                  type: array
+                              required:
+                              - key
+                              - operator
+                              type: object
+                            type: array
+                          matchLabels:
+                            additionalProperties:
+                              type: string
+                            type: object
+                        type: object
+                      storageClassName:
+                        type: string
+                      volumeMode:
+                        type: string
+                      volumeName:
+                        type: string
+                    type: object
+                  status:
+                    properties:
+                      accessModes:
+                        items:
+                          type: string
+                        type: array
+                      capacity:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        type: object
+                      conditions:
+                        items:
+                          properties:
+                            lastProbeTime:
+                              format: date-time
+                              type: string
+                            lastTransitionTime:
+                              format: date-time
+                              type: string
+                            message:
+                              type: string
+                            reason:
+                              type: string
+                            status:
+                              type: string
+                            type:
+                              type: string
+                          required:
+                          - status
+                          - type
+                          type: object
+                        type: array
+                      phase:
+                        type: string
+                    type: object
+                type: object
+              type: array
             volumes:
               items:
                 properties:
@@ -4148,7 +4321,19 @@ spec:
               type: object
             driverInfo:
               properties:
+                creationTimestamp:
+                  format: date-time
+                  nullable: true
+                  type: string
+                podIp:
+                  type: string
                 podName:
+                  type: string
+                podState:
+                  type: string
+                terminationTime:
+                  format: date-time
+                  nullable: true
                   type: string
                 webUIAddress:
                   type: string
@@ -4200,5 +4385,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []

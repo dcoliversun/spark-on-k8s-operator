@@ -18,6 +18,8 @@ package webhook
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/kubernetes"
 	"strings"
 
 	"github.com/golang/glog"
@@ -42,7 +44,7 @@ type patchOperation struct {
 	Value interface{} `json:"value,omitempty"`
 }
 
-func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+func patchSparkPod(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
 	var patchOps []patchOperation
 
 	if util.IsDriverPod(pod) {
@@ -67,6 +69,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addAnnotations(pod, app)...)
 	patchOps = append(patchOps, addRuntimeClassName(pod, app)...)
 	patchOps = append(patchOps, addCustomResources(pod, app)...)
+	patchOps = append(patchOps, addPVCTemplate(clientSet, pod, app)...)
 
 	op := addSchedulerName(pod, app)
 	if op != nil {
@@ -886,4 +889,85 @@ func findContainer(pod *corev1.Pod) int {
 		}
 	}
 	return -1
+}
+
+func addPVCTemplate(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+	namespace := pod.Namespace
+	podName := pod.Name
+	// Find index of pod
+	index := splitIndexFromPodName(podName)
+	// Current Pod volumes
+	volumes := pod.Spec.Volumes
+
+	ops := make([]patchOperation, 0)
+
+	// Get this pod volumeMounts spec
+	var volumeMounts []corev1.VolumeMount
+	if util.IsDriverPod(pod) {
+		volumeMounts = app.Spec.Driver.VolumeMounts
+	} else if util.IsExecutorPod(pod) {
+		volumeMounts = app.Spec.Executor.VolumeMounts
+	}
+
+	// Get vpc template definition
+	volumeClaimTemplates := app.Spec.VolumeClaimTemplates
+	if len(volumeClaimTemplates) != 0 {
+		for _, vct := range volumeClaimTemplates {
+			// storage name to match volume
+			storageName := vct.Name
+			// unique index clain name
+			clainName := fmt.Sprintf("%s-%s", vct.Name, index)
+			vct.Name = clainName
+
+			// get or create unique pvc
+			_, err := clientSet.CoreV1().PersistentVolumeClaims(namespace).Get(fmt.Sprintf("%s-%s", vct.Name, index), metav1.GetOptions{})
+			if err != nil && errors.IsNotFound(err) {
+				_, err := clientSet.CoreV1().PersistentVolumeClaims(namespace).Create(&vct)
+				if err != nil {
+					glog.Errorf("Failed to create pvc %s because of %v", vct.Name, err)
+					continue
+				}
+			}
+
+			found := false
+			for _, v := range volumes {
+				// check current volumes to find clain
+				if v.Name == storageName {
+					found = true
+				}
+			}
+
+			if !found {
+				for _, m := range volumeMounts {
+					// check volumes to match storage
+					if m.Name == storageName {
+						v := corev1.Volume{
+							Name: storageName,
+							VolumeSource: corev1.VolumeSource{
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: clainName,
+									// TODO: Use source definition to set this value when we have one.
+									ReadOnly: false,
+								},
+							}}
+						ops = append(ops, addVolume(pod, v))
+						vmPatchOp := addVolumeMount(pod, m)
+						if vmPatchOp == nil {
+							continue
+						}
+						ops = append(ops, *vmPatchOp)
+					}
+				}
+			}
+		}
+	}
+	return ops
+}
+
+func splitIndexFromPodName(name string) string {
+	arr := strings.Split(name, "-")
+	if len(arr) != 1 {
+		return arr[len(arr)-1]
+	}
+	return ""
 }
