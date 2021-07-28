@@ -918,6 +918,7 @@ func addPVCTemplate(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta
 			// unique index clain name
 			clainName := fmt.Sprintf("%s-%s", vct.Name, index)
 			vct.Name = clainName
+			vct.Namespace = namespace
 
 			glog.V(5).Infof("Try to find PersistentVolumeClaims to check pod pvc %s", clainName)
 			// get or create unique pvc
