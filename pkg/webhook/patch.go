@@ -919,9 +919,11 @@ func addPVCTemplate(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta
 			clainName := fmt.Sprintf("%s-%s", vct.Name, index)
 			vct.Name = clainName
 
+			glog.V(5).Infof("Try to find PersistentVolumeClaims to check pod pvc %s", clainName)
 			// get or create unique pvc
 			_, err := clientSet.CoreV1().PersistentVolumeClaims(namespace).Get(fmt.Sprintf("%s-%s", vct.Name, index), metav1.GetOptions{})
 			if err != nil && errors.IsNotFound(err) {
+				glog.V(5).Infof("Failed to find PersistentVolumeClaims %s and try to create one.", clainName)
 				_, err := clientSet.CoreV1().PersistentVolumeClaims(namespace).Create(&vct)
 				if err != nil {
 					glog.Errorf("Failed to create pvc %s because of %v", vct.Name, err)
@@ -961,6 +963,7 @@ func addPVCTemplate(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta
 			}
 		}
 	}
+	glog.V(5).Infof("Add all PersistentVolumeClaims patch %v", ops)
 	return ops
 }
 
