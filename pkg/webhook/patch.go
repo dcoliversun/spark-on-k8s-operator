@@ -18,6 +18,7 @@ package webhook
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"strings"
 
@@ -891,7 +892,7 @@ func findContainer(pod *corev1.Pod) int {
 }
 
 func addPVCTemplate(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
-	namespace := pod.Namespace
+	namespace := app.Namespace
 	podName := pod.Name
 	// Find index of pod
 	index := splitIndexFromPodName(podName)
@@ -920,18 +921,17 @@ func addPVCTemplate(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta
 
 			glog.V(5).Infof("Try to find PersistentVolumeClaims to check pod pvc %s", clainName)
 			// get or create unique pvc
-			pvc, err := clientSet.CoreV1().PersistentVolumeClaims(namespace).Get(fmt.Sprintf("%s-%s", vct.Name, index), metav1.GetOptions{})
-			if pvc == nil {
+			_, err := clientSet.CoreV1().PersistentVolumeClaims(namespace).Get(fmt.Sprintf("%s-%s", vct.Name, index), metav1.GetOptions{})
+			if err != nil {
+				glog.V(5).Infof("Failed to find PersistentVolumeClaims %s because of %v.", clainName, err)
+			}
+			if err != nil && errors.IsNotFound(err) {
 				glog.V(5).Infof("Failed to find PersistentVolumeClaims %s and try to create one.", clainName)
 				_, err := clientSet.CoreV1().PersistentVolumeClaims(namespace).Create(&vct)
 				if err != nil {
 					glog.Errorf("Failed to create pvc %s because of %v", vct.Name, err)
 					continue
 				}
-			}
-			if err != nil {
-				glog.V(5).Infof("Failed to find PersistentVolumeClaims %s because of %v.", clainName, err)
-				continue
 			}
 
 			found := false
