@@ -919,6 +919,8 @@ func addPVCTemplate(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta
 			clainName := fmt.Sprintf("%s-%s", vct.Name, index)
 			vct.Name = clainName
 			vct.Namespace = namespace
+			// set owner references to handle deletions
+			vct.SetOwnerReferences(pod.GetOwnerReferences())
 
 			glog.V(5).Infof("Try to find PersistentVolumeClaims to check pod pvc %s", clainName)
 			// get or create unique pvc
