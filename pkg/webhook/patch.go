@@ -915,8 +915,14 @@ func addPVCTemplate(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta
 		for _, vct := range volumeClaimTemplates {
 			// storage name to match volume
 			storageName := vct.Name
+			prefix := app.Name
+			suffix := fmt.Sprintf("-%s-%s", vct.Name, index)
+
+			if len(prefix) > (maxNameLength - len(suffix)) {
+				prefix = prefix[0 : maxNameLength-len(suffix)]
+			}
 			// unique index clain name
-			clainName := fmt.Sprintf("%s-%s", vct.Name, index)
+			clainName := fmt.Sprintf("%s%s", prefix, suffix)
 			vct.Name = clainName
 			vct.Namespace = namespace
 			// set owner references to handle deletions
@@ -926,7 +932,7 @@ func addPVCTemplate(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta
 
 			glog.V(5).Infof("Try to find PersistentVolumeClaims to check pod pvc %s", clainName)
 			// get or create unique pvc
-			_, err := clientSet.CoreV1().PersistentVolumeClaims(namespace).Get(fmt.Sprintf("%s-%s", vct.Name, index), metav1.GetOptions{})
+			_, err := clientSet.CoreV1().PersistentVolumeClaims(namespace).Get(clainName, metav1.GetOptions{})
 			if err != nil {
 				glog.V(5).Infof("Failed to find PersistentVolumeClaims %s because of %v.", clainName, err)
 			}
@@ -934,7 +940,7 @@ func addPVCTemplate(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta
 				glog.V(5).Infof("Failed to find PersistentVolumeClaims %s and try to create one.", clainName)
 				_, err := clientSet.CoreV1().PersistentVolumeClaims(namespace).Create(&vct)
 				if err != nil {
-					glog.Errorf("Failed to create pvc %s because of %v", vct.Name, err)
+					glog.Errorf("Failed to create pvc %s because of %v", clainName, err)
 					continue
 				}
 			}
