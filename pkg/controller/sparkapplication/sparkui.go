@@ -107,7 +107,6 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 			}},
 		},
 	}
-
 	if len(ingressResourceAnnotations) != 0 {
 		ingress.ObjectMeta.Annotations = ingressResourceAnnotations
 	}

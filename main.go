@@ -67,14 +67,14 @@ var (
 	leaderElectionRenewDeadline    = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
 	leaderElectionRetryPeriod      = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
 	enableBatchScheduler           = flag.Bool("enable-batch-scheduler", false, fmt.Sprintf("Enable batch schedulers for pods' scheduling, the available batch schedulers are: (%s).", strings.Join(batchscheduler.GetRegisteredNames(), ",")))
+	enableAlibabaCloudFeatureGates = flag.Bool("enable-alibaba-cloud-feature-gates", false, "enable Alibaba Cloud feature gates.")
+	alibabaCloudFeatureGates       = flag.String("alibaba-cloud-feature-gates", "", "Alibaba Cloud feature gates options.")
 	enableMetrics                  = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
 	metricsPort                    = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
 	metricsEndpoint                = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
 	metricsPrefix                  = flag.String("metrics-prefix", "", "Prefix for the metrics.")
 	metricsLabels                  util.ArrayFlags
 	metricsJobStartLatencyBuckets  util.HistogramBuckets = util.DefaultJobStartLatencyBuckets
-	enableAlibabaCloudFeatureGates = flag.Bool("enable-alibaba-cloud-feature-gates", false, "enable Alibaba Cloud feature gates.")
-	alibabaCloudFeatureGates       = flag.String("alibaba-cloud-feature-gates", "", "Alibaba Cloud feature gates options.")
 )
 
 func main() {

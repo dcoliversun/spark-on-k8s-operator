@@ -259,7 +259,6 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 				sm.sparkAppExecutorRunningCount.Inc(metricLabels)
 			}
 		case v1beta2.ExecutorCompletedState:
-
 			if convertToExecutorState(oldApp.Status.ExecutorState[executor]) != newExecState {
 				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
 					oldExecutorStates[executor], newExecState)
@@ -271,7 +270,6 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 				}
 			}
 		case v1beta2.ExecutorFailedState:
-
 			if convertToExecutorState(oldApp.Status.ExecutorState[executor]) != newExecState {
 				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
 					oldExecutorStates[executor], newExecState)

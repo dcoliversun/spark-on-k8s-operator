@@ -284,6 +284,9 @@ type SparkApplicationSpec struct {
 	// scheduleer backend since Spark 3.0.
 	// +optional
 	DynamicAllocation *DynamicAllocation `json:"dynamicAllocation,omitempty"`
+	// +optional
+	// one pod on pvc
+	VolumeClaimTemplates []apiv1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 }
 
 // BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application
@@ -299,7 +302,6 @@ type BatchSchedulerConfiguration struct {
 	// +optional
 	Resources apiv1.ResourceList `json:"resources,omitempty"`
 }
-
 
 // ApplicationStateType represents the type of the current state of an application.
 type ApplicationStateType string
@@ -317,6 +319,7 @@ const (
 	SucceedingState       ApplicationStateType = "SUCCEEDING"
 	FailingState          ApplicationStateType = "FAILING"
 	UnknownState          ApplicationStateType = "UNKNOWN"
+	KillingState          ApplicationStateType = "KILLING"
 	KilledState           ApplicationStateType = "KILLED"
 )
 
@@ -514,9 +517,6 @@ type SparkPodSpec struct {
 	// DnsConfig dns settings for the pod, following the Kubernetes specifications.
 	// +optional
 	DNSConfig *apiv1.PodDNSConfig `json:"dnsConfig,omitempty"`
-	// ServiceAccount is the name of the custom Kubernetes service account used by the pod.
-	// +optional
-	ServiceAccount *string `json:"serviceAccount,omitempty"`
 	// NodeName is kubernetes node name to be added to the driver and executor pods.
 	// +optional
 	NodeName *string `json:"nodeName,omitempty"`
@@ -527,12 +527,15 @@ type SparkPodSpec struct {
 	// support kata container
 	// +optional
 	RuntimeClassName string `json:"runtimeClassName,omitempty"`
-	// Termination grace period seconds for the pod
-	// +optional
-	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 	// Resources to override
 	// +optional
 	CustomResources apiv1.ResourceRequirements `json:"customResources,omitempty"`
+	// Termination grace periond seconds for the pod
+	// +optional
+	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
+	// ServiceAccount is the name of the custom Kubernetes service account used by the pod.
+	// +optional
+	ServiceAccount *string `json:"serviceAccount,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
