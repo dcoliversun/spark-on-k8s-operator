@@ -453,7 +453,11 @@ func fixExecutorStateWhenPanic(origin string, state v1beta2.ExecutorState, end m
 		return fmt.Sprintf("State:%s Start:%v End:%v", state, end.Format(time.RFC3339), end.Format(time.RFC3339))
 	} else {
 		newStateArr := make([]string, 0)
-		newStateArr = append(newStateArr, fmt.Sprintf("State:%s", state))
+		if strings.Contains(arr[0], string(v1beta2.CompletedState)) {
+			newStateArr = append(newStateArr, fmt.Sprintf("State:%s", string(v1beta2.CompletedState)))
+		} else {
+			newStateArr = append(newStateArr, fmt.Sprintf("State:%s", state))
+		}
 		if len(arr) == 2 {
 			if strings.Contains(arr[1], "Start") {
 				newStateArr = append(newStateArr, arr[1])

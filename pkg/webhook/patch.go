@@ -842,27 +842,52 @@ func addCustomResources(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchO
 		resource = app.Spec.Executor.CustomResources
 	}
 
+	found := false
+
 	i := 0
 	// Find the driver or executor container in the pod.
 	for ; i < len(pod.Spec.Containers); i++ {
 		if pod.Spec.Containers[i].Name == config.SparkDriverContainerName ||
-			pod.Spec.Containers[i].Name == config.SparkExecutorContainerName {
+			pod.Spec.Containers[i].Name == config.SparkExecutorContainerName ||
+			pod.Spec.Containers[i].Name == config.Spark3DefaultExecutorContainerName {
+			found = true
 			break
 		}
 	}
-	requestsPath := fmt.Sprintf("/spec/containers/%d/resources/requests", i)
-	limitsPath := fmt.Sprintf("/spec/containers/%d/resources/limits", i)
 
-	encoder := strings.NewReplacer("~", "~0", "/", "~1")
-	if len(resource.Requests) != 0 {
-		for k, v := range resource.Requests {
-			ops = append(ops, patchOperation{Op: "add", Path: fmt.Sprintf("%s/%s", requestsPath, encoder.Replace(string(k))), Value: v})
-		}
+	if found == false {
+		glog.V(5).Infof("Failed to find container index %v", pod.Spec.Containers)
+		return ops
 	}
 
+	requestsPath := fmt.Sprintf("/spec/containers/%d/resources/requests", i)
+	limitsPath := fmt.Sprintf("/spec/containers/%d/resources/limits", i)
+	encoder := strings.NewReplacer("~", "~0", "/", "~1")
+
+	if len(resource.Requests) != 0 {
+		if len(pod.Spec.Containers[i].Resources.Requests) == 0 {
+			for k, v := range resource.Requests {
+				ops = append(ops, patchOperation{Op: "add", Path: requestsPath, Value: corev1.ResourceList{
+					corev1.ResourceName(encoder.Replace(string(k))): v,
+				}})
+			}
+		} else {
+			for k, v := range resource.Requests {
+				ops = append(ops, patchOperation{Op: "add", Path: fmt.Sprintf("%s/%s", requestsPath, encoder.Replace(string(k))), Value: v})
+			}
+		}
+	}
 	if len(resource.Limits) != 0 {
-		for k, v := range resource.Limits {
-			ops = append(ops, patchOperation{Op: "add", Path: fmt.Sprintf("%s/%s", limitsPath, encoder.Replace(string(k))), Value: v})
+		if len(pod.Spec.Containers[i].Resources.Limits) == 0 {
+			for k, v := range resource.Limits {
+				ops = append(ops, patchOperation{Op: "add", Path: limitsPath, Value: corev1.ResourceList{
+					corev1.ResourceName(encoder.Replace(string(k))): v,
+				}})
+			}
+		} else {
+			for k, v := range resource.Limits {
+				ops = append(ops, patchOperation{Op: "add", Path: fmt.Sprintf("%s/%s", limitsPath, encoder.Replace(string(k))), Value: v})
+			}
 		}
 	}
 	return ops
