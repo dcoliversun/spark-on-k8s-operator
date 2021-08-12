@@ -374,7 +374,6 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) []patc
 		volumeName := namePath.Name + "-vol"
 		if len(volumeName) > maxNameLength {
 			volumeName = volumeName[0:maxNameLength]
-			glog.V(2).Infof("ConfigMap volume name is too long. Truncating to length %d. Result: %s.", maxNameLength, volumeName)
 		}
 		patchOps = append(patchOps, addConfigMapVolume(pod, namePath.Name, volumeName))
 		patchOps = append(patchOps, addConfigMapVolumeMount(pod, volumeName, namePath.Path))
@@ -746,15 +745,31 @@ func addCustomResources(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchO
 	limitsPath := fmt.Sprintf("/spec/containers/%d/resources/limits", i)
 
 	encoder := strings.NewReplacer("~", "~0", "/", "~1")
+
 	if len(resource.Requests) != 0 {
-		for k, v := range resource.Requests {
-			ops = append(ops, patchOperation{Op: "add", Path: fmt.Sprintf("%s/%s", requestsPath, encoder.Replace(string(k))), Value: v})
+		if len(pod.Spec.Containers[i].Resources.Requests) == 0 {
+			for k, v := range resource.Requests {
+				ops = append(ops, patchOperation{Op: "add", Path: requestsPath, Value: corev1.ResourceList{
+					corev1.ResourceName(encoder.Replace(string(k))): v,
+				}})
+			}
+		} else {
+			for k, v := range resource.Requests {
+				ops = append(ops, patchOperation{Op: "add", Path: fmt.Sprintf("%s/%s", requestsPath, encoder.Replace(string(k))), Value: v})
+			}
 		}
 	}
-
 	if len(resource.Limits) != 0 {
-		for k, v := range resource.Limits {
-			ops = append(ops, patchOperation{Op: "add", Path: fmt.Sprintf("%s/%s", limitsPath, encoder.Replace(string(k))), Value: v})
+		if len(pod.Spec.Containers[i].Resources.Limits) == 0 {
+			for k, v := range resource.Limits {
+				ops = append(ops, patchOperation{Op: "add", Path: limitsPath, Value: corev1.ResourceList{
+					corev1.ResourceName(encoder.Replace(string(k))): v,
+				}})
+			}
+		} else {
+			for k, v := range resource.Limits {
+				ops = append(ops, patchOperation{Op: "add", Path: fmt.Sprintf("%s/%s", limitsPath, encoder.Replace(string(k))), Value: v})
+			}
 		}
 	}
 	return ops
