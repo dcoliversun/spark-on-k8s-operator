@@ -276,7 +276,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	var reviewResponse *admissionv1beta1.AdmissionResponse
 	switch review.Request.Resource {
 	case podResource:
-		reviewResponse, whErr = mutatePods(review, wh.lister, wh.sparkJobNamespace)
+		reviewResponse, whErr = mutatePods(wh.clientset, review, wh.lister, wh.sparkJobNamespace)
 	case sparkApplicationResource:
 		if !wh.enableResourceQuotaEnforcement {
 			unexpectedResourceType(w, review.Request.Resource.String())
@@ -379,7 +379,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		},
 	}
 
-	mutatingWebhook := v1beta1.Webhook{
+	mutatingWebhook := v1beta1.MutatingWebhook{
 		Name:  webhookName,
 		Rules: mutatingRules,
 		ClientConfig: v1beta1.WebhookClientConfig{
@@ -388,10 +388,9 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		},
 		FailurePolicy:     &wh.failurePolicy,
 		NamespaceSelector: wh.selector,
-
 	}
 
-	validatingWebhook := v1beta1.Webhook{
+	validatingWebhook := v1beta1.ValidatingWebhook{
 		Name:  quotaWebhookName,
 		Rules: validatingRules,
 		ClientConfig: v1beta1.WebhookClientConfig{
@@ -402,8 +401,8 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		NamespaceSelector: wh.selector,
 	}
 
-	mutatingWebhooks := []v1beta1.Webhook{mutatingWebhook}
-	validatingWebhooks := []v1beta1.Webhook{validatingWebhook}
+	mutatingWebhooks := []v1beta1.MutatingWebhook{mutatingWebhook}
+	validatingWebhooks := []v1beta1.ValidatingWebhook{validatingWebhook}
 
 	mutatingExisting, mutatingGetErr := mwcClient.Get(webhookConfigName, metav1.GetOptions{})
 	if mutatingGetErr != nil {
@@ -527,6 +526,7 @@ func admitScheduledSparkApplications(review *admissionv1beta1.AdmissionReview, e
 }
 
 func mutatePods(
+	clientSet kubernetes.Interface,
 	review *admissionv1beta1.AdmissionReview,
 	lister crdlisters.SparkApplicationLister,
 	sparkJobNs string) (*admissionv1beta1.AdmissionResponse, error) {
@@ -553,7 +553,7 @@ func mutatePods(
 		return nil, fmt.Errorf("failed to get SparkApplication %s/%s: %v", review.Request.Namespace, appName, err)
 	}
 
-	patchOps := patchSparkPod(pod, app)
+	patchOps := patchSparkPod(clientSet, pod, app)
 	if len(patchOps) > 0 {
 		glog.V(2).Infof("Pod %s in namespace %s is subject to mutation", pod.GetObjectMeta().GetName(), review.Request.Namespace)
 		patchBytes, err := json.Marshal(patchOps)

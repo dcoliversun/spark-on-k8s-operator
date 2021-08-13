@@ -279,12 +279,18 @@ rules:
 // DefaultPrometheusJavaAgentPort is the default port used by the Prometheus JMX exporter.
 const DefaultPrometheusJavaAgentPort int32 = 8090
 
+// DefaultPrometheusPortProtocol is the default protocol used by the Prometheus JMX exporter.
+const DefaultPrometheusPortProtocol string = "TCP"
+
 const (
 	// SparkDriverContainerName is name of driver container in spark driver pod
 	SparkDriverContainerName = "spark-kubernetes-driver"
 	// SparkExecutorContainerName is name of executor container in spark executor pod
 	SparkExecutorContainerName = "executor"
-
+	// Spark3DefaultExecutorContainerName is the default executor container name in
+	// Spark 3.x, which allows the container name to be configured through the pod
+	// template support.
+	Spark3DefaultExecutorContainerName = "spark-kubernetes-executor"
 	// SparkLocalDirVolumePrefix is the volume name prefix for "scratch" space directory
 	SparkLocalDirVolumePrefix = "spark-local-dir-"
 )

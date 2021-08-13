@@ -278,6 +278,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 
 	assert.Equal(t, v1beta2.FailedSubmissionState, updatedApp.Status.AppState.State)
 	assert.Equal(t, int32(1), updatedApp.Status.SubmissionAttempts)
+	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppCount, map[string]string{}))
 	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
 	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppFailedSubmissionCount, map[string]string{}))
 
@@ -607,6 +608,9 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(test.app.Namespace).Get(test.app.Name, metav1.GetOptions{})
 		assert.Nil(t, err)
 		assert.Equal(t, test.expectedState, updatedApp.Status.AppState.State)
+		if test.app.Status.AppState.State == v1beta2.NewState {
+			assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppCount, map[string]string{}))
+		}
 		if test.expectedState == v1beta2.SubmittedState {
 			assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
 		}
@@ -1029,9 +1033,180 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					ResourceVersion: "1",
 				},
 				Status: apiv1.PodStatus{
+					Phase: apiv1.PodRunning,
+					ContainerStatuses: []apiv1.ContainerStatus{
+						{
+							Name: config.SparkDriverContainerName,
+							State: apiv1.ContainerState{
+								Running: &apiv1.ContainerStateRunning{},
+							},
+						},
+						{
+							Name: "sidecar",
+							State: apiv1.ContainerState{
+								Terminated: &apiv1.ContainerStateTerminated{
+									ExitCode: 0,
+								},
+							},
+						},
+					},
+				},
+			},
+			executorPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "exec-1",
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    config.SparkExecutorRole,
+						config.SparkAppNameLabel: appName,
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodSucceeded,
+				},
+			},
+			expectedAppState:      v1beta2.RunningState,
+			expectedExecutorState: map[string]v1beta2.ExecutorState{"exec-1": v1beta2.ExecutorCompletedState},
+			expectedAppMetrics:    metrics{},
+			expectedExecutorMetrics: executorMetrics{
+				successMetricCount: 1,
+			},
+		},
+		{
+			appName:           appName,
+			oldAppStatus:      v1beta2.RunningState,
+			oldExecutorStatus: map[string]v1beta2.ExecutorState{"exec-1": v1beta2.ExecutorRunningState},
+			driverPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      driverPodName,
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    config.SparkDriverRole,
+						config.SparkAppNameLabel: appName,
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodRunning,
+					ContainerStatuses: []apiv1.ContainerStatus{
+						{
+							Name: config.SparkDriverContainerName,
+							State: apiv1.ContainerState{
+								Terminated: &apiv1.ContainerStateTerminated{
+									ExitCode: 0,
+								},
+							},
+						},
+						{
+							Name: "sidecar",
+							State: apiv1.ContainerState{
+								Running: &apiv1.ContainerStateRunning{},
+							},
+						},
+					},
+				},
+			},
+			executorPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "exec-1",
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    config.SparkExecutorRole,
+						config.SparkAppNameLabel: appName,
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodSucceeded,
+				},
+			},
+			expectedAppState:      v1beta2.SucceedingState,
+			expectedExecutorState: map[string]v1beta2.ExecutorState{"exec-1": v1beta2.ExecutorCompletedState},
+			expectedAppMetrics: metrics{
+				successMetricCount: 1,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				successMetricCount: 1,
+			},
+		},
+		{
+			appName:           appName,
+			oldAppStatus:      v1beta2.RunningState,
+			oldExecutorStatus: map[string]v1beta2.ExecutorState{"exec-1": v1beta2.ExecutorRunningState},
+			driverPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      driverPodName,
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    config.SparkDriverRole,
+						config.SparkAppNameLabel: appName,
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodRunning,
+					ContainerStatuses: []apiv1.ContainerStatus{
+						{
+							Name: config.SparkDriverContainerName,
+							State: apiv1.ContainerState{
+								Terminated: &apiv1.ContainerStateTerminated{
+									ExitCode: 137,
+									Reason:   "OOMKilled",
+								},
+							},
+						},
+						{
+							Name: "sidecar",
+							State: apiv1.ContainerState{
+								Running: &apiv1.ContainerStateRunning{},
+							},
+						},
+					},
+				},
+			},
+			executorPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "exec-1",
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    config.SparkExecutorRole,
+						config.SparkAppNameLabel: appName,
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodSucceeded,
+				},
+			},
+			expectedAppState:      v1beta2.FailingState,
+			expectedExecutorState: map[string]v1beta2.ExecutorState{"exec-1": v1beta2.ExecutorCompletedState},
+			expectedAppMetrics: metrics{
+				failedMetricCount: 1,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				successMetricCount: 1,
+			},
+		},
+		{
+			appName:           appName,
+			oldAppStatus:      v1beta2.RunningState,
+			oldExecutorStatus: map[string]v1beta2.ExecutorState{"exec-1": v1beta2.ExecutorRunningState},
+			driverPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      driverPodName,
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    config.SparkDriverRole,
+						config.SparkAppNameLabel: appName,
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
 					Phase: apiv1.PodFailed,
 					ContainerStatuses: []apiv1.ContainerStatus{
 						{
+							Name: config.SparkDriverContainerName,
 							State: apiv1.ContainerState{
 								Terminated: &apiv1.ContainerStateTerminated{
 									ExitCode: 137,
@@ -1063,6 +1238,66 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			},
 			expectedExecutorMetrics: executorMetrics{
 				failedMetricCount: 1,
+			},
+		},
+		{
+			appName:           appName,
+			oldAppStatus:      v1beta2.RunningState,
+			oldExecutorStatus: map[string]v1beta2.ExecutorState{"exec-1": v1beta2.ExecutorRunningState},
+			driverPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      driverPodName,
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    config.SparkDriverRole,
+						config.SparkAppNameLabel: appName,
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodFailed,
+					ContainerStatuses: []apiv1.ContainerStatus{
+						{
+							Name: config.SparkDriverContainerName,
+							State: apiv1.ContainerState{
+								Terminated: &apiv1.ContainerStateTerminated{
+									ExitCode: 0,
+								},
+							},
+						},
+						{
+							Name: "sidecar",
+							State: apiv1.ContainerState{
+								Terminated: &apiv1.ContainerStateTerminated{
+									ExitCode: 137,
+									Reason:   "OOMKilled",
+								},
+							},
+						},
+					},
+				},
+			},
+			executorPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "exec-1",
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    config.SparkExecutorRole,
+						config.SparkAppNameLabel: appName,
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodSucceeded,
+				},
+			},
+			expectedAppState:      v1beta2.SucceedingState,
+			expectedExecutorState: map[string]v1beta2.ExecutorState{"exec-1": v1beta2.ExecutorCompletedState},
+			expectedAppMetrics: metrics{
+				successMetricCount: 1,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				successMetricCount: 1,
 			},
 		},
 		{
@@ -1188,8 +1423,10 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 		// Validate error message if the driver pod failed.
 		if test.driverPod != nil && test.driverPod.Status.Phase == apiv1.PodFailed {
 			if len(test.driverPod.Status.ContainerStatuses) > 0 && test.driverPod.Status.ContainerStatuses[0].State.Terminated != nil {
-				assert.Equal(t, updatedApp.Status.AppState.ErrorMessage,
-					fmt.Sprintf("driver pod failed with ExitCode: %d, Reason: %s", test.driverPod.Status.ContainerStatuses[0].State.Terminated.ExitCode, test.driverPod.Status.ContainerStatuses[0].State.Terminated.Reason))
+				if test.driverPod.Status.ContainerStatuses[0].State.Terminated.ExitCode != 0 {
+					assert.Equal(t, updatedApp.Status.AppState.ErrorMessage,
+						fmt.Sprintf("driver container failed with ExitCode: %d, Reason: %s", test.driverPod.Status.ContainerStatuses[0].State.Terminated.ExitCode, test.driverPod.Status.ContainerStatuses[0].State.Terminated.Reason))
+				}
 			} else {
 				assert.Equal(t, updatedApp.Status.AppState.ErrorMessage, "driver container status missing")
 			}
@@ -1259,14 +1496,14 @@ func TestSyncSparkApplication_ApplicationExpired(t *testing.T) {
 	assert.True(t, errors.IsNotFound(err))
 }
 
-func TestHasRetryIntervalPassed(t *testing.T) {
+func TestIsNextRetryDue(t *testing.T) {
 	// Failure cases.
-	assert.False(t, hasRetryIntervalPassed(nil, 3, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
-	assert.False(t, hasRetryIntervalPassed(int64ptr(5), 0, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
-	assert.False(t, hasRetryIntervalPassed(int64ptr(5), 3, metav1.Time{}))
+	assert.False(t, isNextRetryDue(nil, 3, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
+	assert.False(t, isNextRetryDue(int64ptr(5), 0, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
+	assert.False(t, isNextRetryDue(int64ptr(5), 3, metav1.Time{}))
 	// Not enough time passed.
-	assert.False(t, hasRetryIntervalPassed(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
-	assert.True(t, hasRetryIntervalPassed(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-151 * time.Second)}))
+	assert.False(t, isNextRetryDue(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
+	assert.True(t, isNextRetryDue(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-151 * time.Second)}))
 }
 
 func stringptr(s string) *string {

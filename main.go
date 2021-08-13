@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-//go:generate hack/update-codegen.sh
-
 package main
 
 import (
@@ -60,10 +58,6 @@ var (
 	namespace                      = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
 	enableWebhook                  = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
 	enableResourceQuotaEnforcement = flag.Bool("enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
-	enableMetrics                  = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
-	metricsPort                    = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
-	metricsEndpoint                = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
-	metricsPrefix                  = flag.String("metrics-prefix", "", "Prefix for the metrics.")
 	ingressURLFormat               = flag.String("ingress-url-format", "", "Ingress URL format.")
 	enableLeaderElection           = flag.Bool("leader-election", false, "Enable Spark operator leader election.")
 	leaderElectionLockNamespace    = flag.String("leader-election-lock-namespace", "spark-operator", "Namespace in which to create the ConfigMap for leader election.")
@@ -74,11 +68,19 @@ var (
 	enableBatchScheduler           = flag.Bool("enable-batch-scheduler", false, fmt.Sprintf("Enable batch schedulers for pods' scheduling, the available batch schedulers are: (%s).", strings.Join(batchscheduler.GetRegisteredNames(), ",")))
 	enableAlibabaCloudFeatureGates = flag.Bool("enable-alibaba-cloud-feature-gates", false, "enable Alibaba Cloud feature gates.")
 	alibabaCloudFeatureGates       = flag.String("alibaba-cloud-feature-gates", "", "Alibaba Cloud feature gates options.")
+	enableMetrics                  = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
+	metricsPort                    = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint                = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
+	metricsPrefix                  = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	metricsLabels                  util.ArrayFlags
+	metricsJobStartLatencyBuckets  util.HistogramBuckets = util.DefaultJobStartLatencyBuckets
 )
 
 func main() {
-	var metricsLabels util.ArrayFlags
 	flag.Var(&metricsLabels, "metrics-labels", "Labels for the metrics")
+	flag.Var(&metricsJobStartLatencyBuckets, "metrics-job-start-latency-buckets",
+		"Comma-separated boundary values (in seconds) for the job start latency histogram bucket; "+
+			"it accepts any numerical values that can be parsed into a 64-bit floating point")
 	flag.Parse()
 
 	// Create the client config. Use kubeConfig if given, otherwise assume in-cluster.
@@ -102,11 +104,16 @@ func main() {
 		if err != nil {
 			glog.Fatal(err)
 		}
-		resourceLock, err := resourcelock.New(resourcelock.ConfigMapsResourceLock, *leaderElectionLockNamespace, *leaderElectionLockName, kubeClient.CoreV1(), resourcelock.ResourceLockConfig{
-			Identity: hostname,
-			// TODO: This is a workaround for a nil dereference in client-go. This line can be removed when that dependency is updated.
-			EventRecorder: &record.FakeRecorder{},
-		})
+		resourceLock, err := resourcelock.New(resourcelock.ConfigMapsResourceLock,
+			*leaderElectionLockNamespace,
+			*leaderElectionLockName,
+			kubeClient.CoreV1(),
+			kubeClient.CoordinationV1(),
+			resourcelock.ResourceLockConfig{
+				Identity: hostname,
+				// TODO: This is a workaround for a nil dereference in client-go. This line can be removed when that dependency is updated.
+				EventRecorder: &record.FakeRecorder{},
+			})
 		if err != nil {
 			glog.Fatal(err)
 		}
@@ -160,10 +167,11 @@ func main() {
 	var metricConfig *util.MetricConfig
 	if *enableMetrics {
 		metricConfig = &util.MetricConfig{
-			MetricsEndpoint: *metricsEndpoint,
-			MetricsPort:     *metricsPort,
-			MetricsPrefix:   *metricsPrefix,
-			MetricsLabels:   metricsLabels,
+			MetricsEndpoint:               *metricsEndpoint,
+			MetricsPort:                   *metricsPort,
+			MetricsPrefix:                 *metricsPrefix,
+			MetricsLabels:                 metricsLabels,
+			MetricsJobStartLatencyBuckets: metricsJobStartLatencyBuckets,
 		}
 
 		glog.Info("Enabling metrics collecting and exporting to Prometheus")

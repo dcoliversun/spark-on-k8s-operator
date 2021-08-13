@@ -49,10 +49,11 @@ func RegisterMetric(metric prometheus.Collector) {
 // MetricConfig is a container of configuration properties for the collection and exporting of
 // application metrics to Prometheus.
 type MetricConfig struct {
-	MetricsEndpoint string
-	MetricsPort     string
-	MetricsPrefix   string
-	MetricsLabels   []string
+	MetricsEndpoint               string
+	MetricsPort                   string
+	MetricsPrefix                 string
+	MetricsLabels                 []string
+	MetricsJobStartLatencyBuckets []float64
 }
 
 // A variant of Prometheus Gauge that only holds non-negative values.
@@ -166,7 +167,7 @@ func (p *WorkQueueMetrics) NewAddsMetric(name string) workqueue.CounterMetric {
 }
 
 // Latency Metric for the kubernetes workqueue.
-func (p *WorkQueueMetrics) NewLatencyMetric(name string) workqueue.SummaryMetric {
+func (p *WorkQueueMetrics) NewLatencyMetric(name string) workqueue.HistogramMetric {
 	latencyMetric := prometheus.NewSummary(prometheus.SummaryOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_latency"),
 		Help: fmt.Sprintf("Latency for workqueue: %s", name),
@@ -176,7 +177,7 @@ func (p *WorkQueueMetrics) NewLatencyMetric(name string) workqueue.SummaryMetric
 }
 
 // WorkDuration Metric for the kubernetes workqueue.
-func (p *WorkQueueMetrics) NewWorkDurationMetric(name string) workqueue.SummaryMetric {
+func (p *WorkQueueMetrics) NewWorkDurationMetric(name string) workqueue.HistogramMetric {
 	workDurationMetric := prometheus.NewSummary(prometheus.SummaryOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_work_duration"),
 		Help: fmt.Sprintf("How long processing an item from workqueue %s takes.", name),
@@ -205,7 +206,7 @@ func (p *WorkQueueMetrics) NewUnfinishedWorkSecondsMetric(name string) workqueue
 	return unfinishedWorkSecondsMetric
 }
 
-func (p *WorkQueueMetrics) NewLongestRunningProcessorMicrosecondsMetric(name string) workqueue.SettableGaugeMetric {
+func (p *WorkQueueMetrics) NewLongestRunningProcessorSecondsMetric(name string) workqueue.SettableGaugeMetric {
 	longestRunningProcessorMicrosecondsMetric := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_longest_running_processor_microseconds"),
 		Help: fmt.Sprintf("Longest running processor microseconds: %s", name),

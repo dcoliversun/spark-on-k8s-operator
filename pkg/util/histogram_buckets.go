@@ -1,5 +1,5 @@
 /*
-Copyright 2019 Google LLC
+Copyright 2018 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,15 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package schedulerinterface
+package util
 
 import (
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"fmt"
+	"strconv"
+	"strings"
 )
 
-type BatchScheduler interface {
-	Name() string
+var DefaultJobStartLatencyBuckets = []float64{30, 60, 90, 120, 150, 180, 210, 240, 270, 300}
 
-	ShouldSchedule(app *v1beta2.SparkApplication) bool
-	DoBatchSchedulingOnSubmission(app *v1beta2.SparkApplication) error
+type HistogramBuckets []float64
+
+func (hb *HistogramBuckets) String() string {
+	return fmt.Sprint(*hb)
+}
+
+func (hb *HistogramBuckets) Set(value string) error {
+	*hb = nil
+	for _, boundaryStr := range strings.Split(value, ",") {
+		boundary, err := strconv.ParseFloat(strings.TrimSpace(boundaryStr), 64)
+		if err != nil {
+			return err
+		}
+		*hb = append(*hb, boundary)
+	}
+	return nil
 }
