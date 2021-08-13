@@ -72,6 +72,7 @@ var (
 	metricsPort                    = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
 	metricsEndpoint                = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
 	metricsPrefix                  = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	versionSelector                = flag.String("version-selector", "", "Spark Job version selector.")
 	metricsLabels                  util.ArrayFlags
 	metricsJobStartLatencyBuckets  util.HistogramBuckets = util.DefaultJobStartLatencyBuckets
 )
@@ -180,7 +181,7 @@ func main() {
 
 	alibabaCloudFeatureGatesMap := util.ConvertFeatureGatesToMap(*alibabaCloudFeatureGates)
 	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, batchSchedulerMgr, *enableAlibabaCloudFeatureGates,alibabaCloudFeatureGatesMap)
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, batchSchedulerMgr, *enableAlibabaCloudFeatureGates, alibabaCloudFeatureGatesMap, versionSelector)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 

@@ -43,8 +43,8 @@ func TestPrintStatus(t *testing.T) {
 		AppState: v1beta2.ApplicationState{
 			State: v1beta2.CompletedState,
 		},
-		ExecutorState: map[string]v1beta2.ExecutorState{
-			"executor-1": v1beta2.ExecutorCompletedState,
+		ExecutorState: map[string]string{
+			"executor-1": string(v1beta2.ExecutorCompletedState),
 		},
 	}
 
