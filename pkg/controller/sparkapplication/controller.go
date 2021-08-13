@@ -80,6 +80,7 @@ type Controller struct {
 	batchSchedulerMgr              *batchscheduler.SchedulerManager
 	enableAlibabaCloudFeatureGates bool
 	alibabaCloudFeatureGates       map[string]bool
+	versionSelector                *string
 }
 
 // NewController creates a new Controller.
@@ -93,7 +94,8 @@ func NewController(
 	ingressURLFormat string,
 	batchSchedulerMgr *batchscheduler.SchedulerManager,
 	enableAlibabaCloudFeatureGates bool,
-	alibabaCloudFeatureGates map[string]bool) *Controller {
+	alibabaCloudFeatureGates map[string]bool,
+	versionSelector *string) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -103,7 +105,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, batchSchedulerMgr, enableAlibabaCloudFeatureGates, alibabaCloudFeatureGates)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, batchSchedulerMgr, enableAlibabaCloudFeatureGates, alibabaCloudFeatureGates, versionSelector)
 }
 
 func newSparkApplicationController(
@@ -116,7 +118,8 @@ func newSparkApplicationController(
 	ingressURLFormat string,
 	batchSchedulerMgr *batchscheduler.SchedulerManager,
 	enableAlibabaCloudFeatureGates bool,
-	alibabaCloudFeatureGates map[string]bool) *Controller {
+	alibabaCloudFeatureGates map[string]bool,
+	versionSelector *string) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
 		"spark-application-controller")
 
@@ -129,6 +132,7 @@ func newSparkApplicationController(
 		batchSchedulerMgr:              batchSchedulerMgr,
 		enableAlibabaCloudFeatureGates: enableAlibabaCloudFeatureGates,
 		alibabaCloudFeatureGates:       alibabaCloudFeatureGates,
+		versionSelector:                versionSelector,
 	}
 
 	if metricsConfig != nil {
@@ -186,13 +190,25 @@ func (c *Controller) Stop() {
 // Callback function called when a new SparkApplication object gets created.
 func (c *Controller) onAdd(obj interface{}) {
 	app := obj.(*v1beta2.SparkApplication)
+	if app.Spec.SparkVersion != "" {
+		if !matchVersion(app.Spec.SparkVersion, c.versionSelector) {
+			return
+		}
+	}
 	glog.Infof("SparkApplication %s/%s was added, enqueueing it for submission", app.Namespace, app.Name)
 	c.enqueue(app)
 }
 
 func (c *Controller) onUpdate(oldObj, newObj interface{}) {
+
 	oldApp := oldObj.(*v1beta2.SparkApplication)
 	newApp := newObj.(*v1beta2.SparkApplication)
+
+	if newApp.Spec.SparkVersion != "" {
+		if !matchVersion(newApp.Spec.SparkVersion, c.versionSelector) {
+			return
+		}
+	}
 
 	// The informer will call this function on non-updated resources during resync, avoid
 	// enqueuing unchanged applications, unless it has expired or is subject to retry.
@@ -242,6 +258,12 @@ func (c *Controller) onDelete(obj interface{}) {
 	}
 
 	if app != nil {
+		if app.Spec.SparkVersion != "" {
+			if !matchVersion(app.Spec.SparkVersion, c.versionSelector) {
+				return
+			}
+		}
+
 		c.handleSparkApplicationDeletion(app)
 		c.recorder.Eventf(
 			app,
@@ -804,9 +826,7 @@ func (c *Controller) completedCRDAchieved(appToUpdate *v1beta2.SparkApplication)
 
 	// driver is created but condition is not recorded correctly.
 	if driverInfo.PodName != "" &&
-		driverInfo.TerminationTime.IsZero() &&
-		(driverInfo.PodState != string(v1beta2.ExecutorFailedState) ||
-			driverInfo.PodState != string(v1beta2.ExecutorCompletedState)) {
+		driverInfo.TerminationTime.IsZero() && !(driverInfo.PodState == string(v1beta2.ExecutorFailedState) || driverInfo.PodState == string(v1beta2.ExecutorCompletedState)) {
 		completed = false
 	}
 
@@ -1241,4 +1261,14 @@ func (c *Controller) cleanUpOnTermination(oldApp, newApp *v1beta2.SparkApplicati
 		}
 	}
 	return nil
+}
+
+func matchVersion(version string, versionSelector *string) bool {
+	if versionSelector == nil {
+		return true
+	}
+	if strings.Contains(version, *versionSelector) {
+		return true
+	}
+	return false
 }
