@@ -200,7 +200,7 @@ func addEnvVars(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation
 
 	envVarsExist := make([]corev1.EnvVar, 0)
 	for _, container := range pod.Spec.Containers {
-		if container.Name == config.SparkDriverContainerName || containerName == config.SparkExecutorContainerName {
+		if container.Name == config.SparkDriverContainerName || containerName == config.SparkExecutorContainerName || containerName == config.SparkExecutorContainerName {
 			// set default values
 			envVarsExist = container.Env
 		}
@@ -227,7 +227,7 @@ func addEnvVars(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation
 		}
 	} else if util.IsExecutorPod(pod) {
 		envVars = app.Spec.Executor.Env
-		containerName = config.SparkExecutorContainerName
+		// containerName = config.SparkExecutorContainerName
 		envVarsDeprecated := app.Spec.Executor.EnvVars
 
 		for k, v := range envVarsDeprecated {
@@ -788,7 +788,8 @@ func addCustomResources(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchO
 	// Find the driver or executor container in the pod.
 	for ; i < len(pod.Spec.Containers); i++ {
 		if pod.Spec.Containers[i].Name == config.SparkDriverContainerName ||
-			pod.Spec.Containers[i].Name == config.SparkExecutorContainerName {
+			pod.Spec.Containers[i].Name == config.SparkExecutorContainerName ||
+			pod.Spec.Containers[i].Name == config.Spark3DefaultExecutorContainerName {
 			break
 		}
 	}
