@@ -26,6 +26,8 @@ spec:
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar"
   sparkVersion: "2.4.5"
+  sparkConf:
+    spark.app.id: spark-pi
   restartPolicy:
     type: Never
   driver:
