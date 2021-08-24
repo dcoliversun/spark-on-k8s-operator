@@ -441,6 +441,14 @@ func isExecutorDone(state string) bool {
 	return false
 }
 
+func isDriverDone(driverInfo v1beta2.DriverInfo) bool {
+	if driverInfo.PodName != "" &&
+		driverInfo.TerminationTime.IsZero() && (driverInfo.PodState == string(v1beta2.ExecutorFailedState) || driverInfo.PodState == string(v1beta2.ExecutorCompletedState)) {
+		return true
+	}
+	return false
+}
+
 // convert state-timestamp from string
 func convertToExecutorState(stateWithTimestamp string) v1beta2.ExecutorState {
 	if len(stateWithTimestamp) == 0 {
@@ -727,6 +735,14 @@ func (c *Controller) syncSparkApplication(key string) error {
 		if !shouldRetry(appCopy) {
 
 			if !c.completedCRDAchieved(appCopy) {
+				driverInfo := appCopy.Status.DriverInfo
+				if isDriverDone(driverInfo) {
+					// clean up all executor
+					err := c.deleteSparkExecutors(appCopy)
+					if err != nil {
+						glog.Infof("failed to delete executors of sparkapp %s in %s when driver panic,because of %v", appCopy.Name, appCopy.Namespace, err)
+					}
+				}
 				if err := c.getAndUpdateAppState(appCopy); err != nil {
 					return err
 				}
@@ -824,11 +840,10 @@ func (c *Controller) completedCRDAchieved(appToUpdate *v1beta2.SparkApplication)
 	completed := true
 	driverInfo := appToUpdate.Status.DriverInfo
 
-	// driver is created but condition is not recorded correctly.
-	if driverInfo.PodName != "" &&
-		driverInfo.TerminationTime.IsZero() && !(driverInfo.PodState == string(v1beta2.ExecutorFailedState) || driverInfo.PodState == string(v1beta2.ExecutorCompletedState)) {
+	if !isDriverDone(driverInfo) {
 		completed = false
 	}
+	// driver is created but condition is not recorded correctly.
 
 	executorStatus := appToUpdate.Status.ExecutorState
 
@@ -1078,6 +1093,19 @@ func (c *Controller) deleteSparkResources(app *v1beta2.SparkApplication) error {
 	}
 
 	return nil
+}
+
+// Delete the executor pod when driver pod oom or panic
+func (c *Controller) deleteSparkExecutors(app *v1beta2.SparkApplication) error {
+	matchLabels := getResourceLabels(app)
+	matchLabels[config.SparkRoleLabel] = config.SparkExecutorRole
+	// Fetch all the executor pods for the current run of the application.
+	selector := labels.SelectorFromSet(labels.Set(matchLabels))
+
+	err := c.kubeClient.CoreV1().Pods(app.Namespace).DeleteCollection(&metav1.DeleteOptions{}, metav1.ListOptions{
+		LabelSelector: selector.String(),
+	})
+	return err
 }
 
 func (c *Controller) validateSparkApplication(app *v1beta2.SparkApplication) error {
