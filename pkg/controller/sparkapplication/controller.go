@@ -443,7 +443,8 @@ func isExecutorDone(state string) bool {
 
 func isDriverDone(driverInfo v1beta2.DriverInfo) bool {
 	if driverInfo.PodName != "" &&
-		driverInfo.TerminationTime.IsZero() && (driverInfo.PodState == string(v1beta2.ExecutorFailedState) || driverInfo.PodState == string(v1beta2.ExecutorCompletedState)) {
+		!driverInfo.TerminationTime.IsZero() &&
+			(driverInfo.PodState == string(v1beta2.ExecutorFailedState) || driverInfo.PodState == string(v1beta2.ExecutorCompletedState)) {
 		return true
 	}
 	return false
