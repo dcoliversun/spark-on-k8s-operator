@@ -21,7 +21,7 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "registry.ap-southeast-1.aliyuncs.com/acs/spark:ack-2.4.5-4534784-test"
+  image: "registry-vpc.cn-hangzhou.aliyuncs.com/acs/spark:ack-2.4.5-1a49ebc"
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar"
