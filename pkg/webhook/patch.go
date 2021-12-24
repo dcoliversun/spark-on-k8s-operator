@@ -51,6 +51,7 @@ func patchSparkPod(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta2
 		patchOps = append(patchOps, addOwnerReference(pod, app))
 	}
 
+	glog.V(3).Infof("start to patch pod of sparkApp %s in namespace", app.Name, app.Namespace)
 	patchOps = append(patchOps, addVolumes(pod, app)...)
 	patchOps = append(patchOps, addGeneralConfigMaps(pod, app)...)
 	patchOps = append(patchOps, addSparkConfigMap(pod, app)...)
@@ -166,7 +167,6 @@ func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation
 			ops = append(ops, *vmPatchOp)
 		}
 	}
-
 	return ops
 }
 
