@@ -1696,6 +1696,83 @@ func TestPatchSparkPod_Lifecycle(t *testing.T) {
 	assert.Equal(t, preStopTest, modifiedDriverPod.Spec.Containers[0].Lifecycle.PreStop.Exec)
 }
 
+func TestPatchSparkPod_PriorityClassName(t *testing.T) {
+	var priorityClassName = "critical"
+	var defaultPriority int32 = 0
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test-patch-priorityclassname",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+				PriorityClassName: &priorityClassName,
+			},
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
+			},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+			Priority: &defaultPriority,
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	//Driver priorityClassName should be populated when specified
+	assert.Equal(t, priorityClassName, modifiedDriverPod.Spec.PriorityClassName)
+	assert.Nil(t, modifiedDriverPod.Spec.Priority)
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkExecutorContainerName,
+					Image: "spark-executor:latest",
+				},
+			},
+			Priority: &defaultPriority,
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	//Executor priorityClassName should also be populated when specified in SparkApplicationSpec
+	assert.Equal(t, priorityClassName, modifiedExecutorPod.Spec.PriorityClassName)
+	assert.Nil(t, modifiedExecutorPod.Spec.Priority)
+}
+
 func getModifiedPod(pod *corev1.Pod, app *v1beta2.SparkApplication) (*corev1.Pod, error) {
 	patchOps := patchSparkPod(nil, pod.DeepCopy(), app)
 	patchBytes, err := json.Marshal(patchOps)
