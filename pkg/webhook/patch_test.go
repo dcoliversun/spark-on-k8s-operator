@@ -778,6 +778,7 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 
 func TestPatchSparkPod_PriorityClassName(t *testing.T) {
 	var priorityClassName = "critical"
+	var defaultPriority int32 = 0
 
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -812,6 +813,7 @@ func TestPatchSparkPod_PriorityClassName(t *testing.T) {
 					Image: "spark-driver:latest",
 				},
 			},
+			Priority: &defaultPriority,
 		},
 	}
 
@@ -821,6 +823,7 @@ func TestPatchSparkPod_PriorityClassName(t *testing.T) {
 	}
 	//Driver priorityClassName should be populated when specified
 	assert.Equal(t, priorityClassName, modifiedDriverPod.Spec.PriorityClassName)
+	assert.Nil(t, modifiedDriverPod.Spec.Priority)
 
 	executorPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -837,6 +840,7 @@ func TestPatchSparkPod_PriorityClassName(t *testing.T) {
 					Image: "spark-executor:latest",
 				},
 			},
+			Priority: &defaultPriority,
 		},
 	}
 
@@ -846,6 +850,7 @@ func TestPatchSparkPod_PriorityClassName(t *testing.T) {
 	}
 	//Executor priorityClassName should also be populated when specified in SparkApplicationSpec
 	assert.Equal(t, priorityClassName, modifiedExecutorPod.Spec.PriorityClassName)
+	assert.Nil(t, modifiedExecutorPod.Spec.Priority)
 }
 
 func TestPatchSparkPod_Sidecars(t *testing.T) {
