@@ -71,6 +71,7 @@ func patchSparkPod(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta2
 	patchOps = append(patchOps, addRuntimeClassName(pod, app)...)
 	patchOps = append(patchOps, addCustomResources(pod, app)...)
 	patchOps = append(patchOps, addPVCTemplate(clientSet, pod, app)...)
+	patchOps = append(patchOps, addPriorityClassName(pod, app)...)
 
 	op := addSchedulerName(pod, app)
 	if op != nil {
@@ -994,6 +995,25 @@ func addPVCTemplate(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta
 		}
 	}
 	glog.V(5).Infof("Add all PersistentVolumeClaims patch %v", ops)
+	return ops
+}
+
+func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+	var priorityClassName *string
+
+	if app.Spec.BatchSchedulerOptions != nil {
+		priorityClassName = app.Spec.BatchSchedulerOptions.PriorityClassName
+	}
+
+	var ops []patchOperation
+	if priorityClassName != nil && *priorityClassName != "" {
+		ops = append(ops, patchOperation{Op: "add", Path: "/spec/priorityClassName", Value: *priorityClassName})
+
+		if pod.Spec.Priority != nil {
+			ops = append(ops, patchOperation{Op: "remove", Path: "/spec/priority"})
+		}
+	}
+
 	return ops
 }
 
