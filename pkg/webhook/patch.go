@@ -72,6 +72,7 @@ func patchSparkPod(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta2
 	patchOps = append(patchOps, addCustomResources(pod, app)...)
 	patchOps = append(patchOps, addPVCTemplate(clientSet, pod, app)...)
 	patchOps = append(patchOps, addPriorityClassName(pod, app)...)
+	patchOps = append(patchOps, addHostAliases(pod, app)...)
 
 	op := addSchedulerName(pod, app)
 	if op != nil {
@@ -1023,4 +1024,29 @@ func splitIndexFromPodName(name string) string {
 		return arr[len(arr)-1]
 	}
 	return ""
+}
+
+func addHostAliases(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+	var hostAliases []corev1.HostAlias
+	if util.IsDriverPod(pod) {
+		hostAliases = app.Spec.Driver.HostAliases
+	} else if util.IsExecutorPod(pod) {
+		hostAliases = app.Spec.Executor.HostAliases
+	}
+
+	first := false
+	if len(pod.Spec.HostAliases) == 0 {
+		first = true
+	}
+
+	var ops []patchOperation
+	for _, v := range hostAliases {
+		if first {
+			ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases", Value: []corev1.HostAlias{v}})
+			first = false
+		} else {
+			ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases/-", Value: &v})
+		}
+	}
+	return ops
 }
