@@ -444,7 +444,7 @@ func isExecutorDone(state string) bool {
 func isDriverDone(driverInfo v1beta2.DriverInfo) bool {
 	if driverInfo.PodName != "" &&
 		!driverInfo.TerminationTime.IsZero() &&
-			(driverInfo.PodState == string(v1beta2.ExecutorFailedState) || driverInfo.PodState == string(v1beta2.ExecutorCompletedState)) {
+		(driverInfo.PodState == string(v1beta2.ExecutorFailedState) || driverInfo.PodState == string(v1beta2.ExecutorCompletedState)) {
 		return true
 	}
 	return false
@@ -804,7 +804,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appCopy.Status.AppState.State = v1beta2.KilledState
 			c.recordSparkApplicationEvent(appCopy)
 		}
-	case v1beta2.CompletedState, v1beta2.FailedState:
+	case v1beta2.CompletedState, v1beta2.FailedState, v1beta2.KilledState:
 		if c.hasApplicationExpired(app) {
 			glog.Infof("Garbage collecting expired SparkApplication %s/%s", app.Namespace, app.Name)
 			err := c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(app.Name, metav1.NewDeleteOptions(0))
