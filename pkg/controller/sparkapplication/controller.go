@@ -393,15 +393,15 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta2.SparkApplication) erro
 
 	app.Status.SparkApplicationID = getSparkApplicationID(driverPod)
 	driverState := podStatusToDriverState(driverPod.Status)
-	// reuse executor state as driver pod state
-	app.Status.DriverInfo.PodState = string(podPhaseToExecutorState(driverPod.Status.Phase))
+
+	app.Status.DriverInfo.PodState = string(driverState)
 	app.Status.DriverInfo.PodIp = driverPod.Status.PodIP
 	// add creationTimestamp
 	if app.Status.DriverInfo.CreationTimestamp.IsZero() {
 		app.Status.DriverInfo.CreationTimestamp = driverPod.CreationTimestamp
 	}
 
-	if driverPod.Status.Phase == apiv1.PodSucceeded || driverPod.Status.Phase == apiv1.PodFailed {
+	if hasDriverTerminated(driverState) {
 		if app.Status.TerminationTime.IsZero() || app.Status.DriverInfo.TerminationTime.IsZero() {
 			now := metav1.Now()
 			app.Status.TerminationTime = now
@@ -444,7 +444,7 @@ func isExecutorDone(state string) bool {
 func isDriverDone(driverInfo v1beta2.DriverInfo) bool {
 	if driverInfo.PodName != "" &&
 		!driverInfo.TerminationTime.IsZero() &&
-		(driverInfo.PodState == string(v1beta2.ExecutorFailedState) || driverInfo.PodState == string(v1beta2.ExecutorCompletedState)) {
+		(driverInfo.PodState == string(v1beta2.DriverFailedState) || driverInfo.PodState == string(v1beta2.DriverCompletedState)) {
 		return true
 	}
 	return false
