@@ -786,6 +786,8 @@ func (c *Controller) syncSparkApplication(key string) error {
 			c.recordSparkApplicationEvent(appCopy)
 		}
 	case v1beta2.CompletedState, v1beta2.FailedState, v1beta2.KilledState:
+		// Delete the driver pod and optional UI resources (Service/Ingress) created for the application.
+		c.handleSparkApplicationDeletion(app)
 		if c.hasApplicationExpired(app) {
 			glog.Infof("Garbage collecting expired SparkApplication %s/%s", app.Namespace, app.Name)
 			err := c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(app.Name, metav1.NewDeleteOptions(0))
