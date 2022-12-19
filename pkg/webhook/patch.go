@@ -72,6 +72,7 @@ func patchSparkPod(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta2
 	patchOps = append(patchOps, addCustomResources(pod, app)...)
 	patchOps = append(patchOps, addPVCTemplate(clientSet, pod, app)...)
 	patchOps = append(patchOps, addPriorityClassName(pod, app)...)
+	patchOps = append(patchOps, addHostAliases(pod, app)...)
 
 	op := addSchedulerName(pod, app)
 	if op != nil {
@@ -153,7 +154,11 @@ func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation
 
 		if v, ok := volumeMap[m.Name]; ok {
 			if _, ok := addedVolumeMap[m.Name]; !ok {
-				ops = append(ops, addVolume(pod, v))
+				vPatchOp := addVolume(pod, v)
+				if vPatchOp == nil {
+					return nil
+				}
+				ops = append(ops, *vPatchOp)
 				addedVolumeMap[m.Name] = v
 			}
 			vmPatchOp := addVolumeMount(pod, m)
@@ -166,18 +171,23 @@ func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation
 	return ops
 }
 
-func addVolume(pod *corev1.Pod, volume corev1.Volume) patchOperation {
+func addVolume(pod *corev1.Pod, volume corev1.Volume) *patchOperation {
 	path := "/spec/volumes"
 	var value interface{}
 	if len(pod.Spec.Volumes) == 0 {
 		value = []corev1.Volume{volume}
 	} else {
+		for _, v := range pod.Spec.Volumes {
+			if v.Name == volume.Name {
+				return nil
+			}
+		}
 		path += "/-"
 		value = volume
 	}
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volume)
 
-	return patchOperation{Op: "add", Path: path, Value: value}
+	return &patchOperation{Op: "add", Path: path, Value: value}
 }
 
 func addVolumeMount(pod *corev1.Pod, mount corev1.VolumeMount) *patchOperation {
@@ -341,7 +351,12 @@ func addSparkConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOp
 	var patchOps []patchOperation
 	sparkConfigMapName := app.Spec.SparkConfigMap
 	if sparkConfigMapName != nil {
-		patchOps = append(patchOps, addConfigMapVolume(pod, *sparkConfigMapName, config.SparkConfigMapVolumeName))
+		cmvPatchOp := addConfigMapVolume(pod, *sparkConfigMapName, config.SparkConfigMapVolumeName)
+		if cmvPatchOp == nil {
+			glog.Warningf("not able to add ConfigMap %s as Spark pod %s already has this volume", *sparkConfigMapName, pod.Name)
+			return nil
+		}
+		patchOps = append(patchOps, *cmvPatchOp)
 		vmPatchOp := addConfigMapVolumeMount(pod, config.SparkConfigMapVolumeName, config.DefaultSparkConfDir)
 		if vmPatchOp == nil {
 			return nil
@@ -360,7 +375,12 @@ func addHadoopConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchO
 	var patchOps []patchOperation
 	hadoopConfigMapName := app.Spec.HadoopConfigMap
 	if hadoopConfigMapName != nil {
-		patchOps = append(patchOps, addConfigMapVolume(pod, *hadoopConfigMapName, config.HadoopConfigMapVolumeName))
+		cmvPatchOp := addConfigMapVolume(pod, *hadoopConfigMapName, config.HadoopConfigMapVolumeName)
+		if cmvPatchOp == nil {
+			glog.Warningf("not able to add ConfigMap %s as Spark pod %s already has this volume", *hadoopConfigMapName, pod.Name)
+			return nil
+		}
+		patchOps = append(patchOps, *cmvPatchOp)
 		vmPatchOp := addConfigMapVolumeMount(pod, config.HadoopConfigMapVolumeName, config.DefaultHadoopConfDir)
 		if vmPatchOp == nil {
 			return nil
@@ -390,7 +410,12 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) []patc
 			volumeName = volumeName[0:maxNameLength]
 			glog.V(2).Infof("ConfigMap volume name is too long. Truncating to length %d. Result: %s.", maxNameLength, volumeName)
 		}
-		patchOps = append(patchOps, addConfigMapVolume(pod, namePath.Name, volumeName))
+		cmvPatchOp := addConfigMapVolume(pod, namePath.Name, volumeName)
+		if cmvPatchOp == nil {
+			glog.Warningf("not able to add ConfigMap %s as Spark pod %s already has this volume", namePath.Name, pod.Name)
+			return nil
+		}
+		patchOps = append(patchOps, *cmvPatchOp)
 		vmPatchOp := addConfigMapVolumeMount(pod, volumeName, namePath.Path)
 		if vmPatchOp == nil {
 			return nil
@@ -428,7 +453,11 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 		portName = *app.Spec.Monitoring.Prometheus.PortName
 	}
 
-	patchOps = append(patchOps, addConfigMapVolume(pod, name, volumeName))
+	cmvPatchOp := addConfigMapVolume(pod, name, volumeName)
+	if cmvPatchOp == nil {
+		return nil
+	}
+	patchOps = append(patchOps, *cmvPatchOp)
 	vmPatchOp := addConfigMapVolumeMount(pod, volumeName, mountPath)
 	if vmPatchOp == nil {
 		glog.Warningf("could not mount volume %s in path %s", volumeName, mountPath)
@@ -469,7 +498,7 @@ func addContainerPort(pod *corev1.Pod, port int32, protocol string, portName str
 	return &patchOperation{Op: "add", Path: path, Value: value}
 }
 
-func addConfigMapVolume(pod *corev1.Pod, configMapName string, configMapVolumeName string) patchOperation {
+func addConfigMapVolume(pod *corev1.Pod, configMapName string, configMapVolumeName string) *patchOperation {
 	volume := corev1.Volume{
 		Name: configMapVolumeName,
 		VolumeSource: corev1.VolumeSource{
@@ -1046,7 +1075,11 @@ func addPVCTemplate(clientSet kubernetes.Interface, pod *corev1.Pod, app *v1beta
 									ReadOnly: false,
 								},
 							}}
-						ops = append(ops, addVolume(pod, v))
+						vPatchOp := addVolume(pod, v)
+						if vPatchOp == nil {
+							continue
+						}
+						ops = append(ops, *vPatchOp)
 						vmPatchOp := addVolumeMount(pod, m)
 						if vmPatchOp == nil {
 							continue
@@ -1067,4 +1100,28 @@ func splitIndexFromPodName(name string) string {
 		return arr[len(arr)-1]
 	}
 	return ""
+}
+
+func addHostAliases(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+	var hostAliases []corev1.HostAlias
+	if util.IsDriverPod(pod) {
+		hostAliases = app.Spec.Driver.HostAliases
+	} else if util.IsExecutorPod(pod) {
+		hostAliases = app.Spec.Executor.HostAliases
+	}
+
+	first := false
+	if len(pod.Spec.HostAliases) == 0 {
+		first = true
+	}
+
+	var ops []patchOperation
+	if len(hostAliases) > 0 {
+		if first {
+			ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases", Value: hostAliases})
+		} else {
+			ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases/-", Value: hostAliases})
+		}
+	}
+	return ops
 }
