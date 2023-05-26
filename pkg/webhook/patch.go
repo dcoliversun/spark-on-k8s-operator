@@ -155,10 +155,9 @@ func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation
 		if v, ok := volumeMap[m.Name]; ok {
 			if _, ok := addedVolumeMap[m.Name]; !ok {
 				vPatchOp := addVolume(pod, v)
-				if vPatchOp == nil {
-					return nil
+				if vPatchOp != nil {
+					ops = append(ops, *vPatchOp)
 				}
-				ops = append(ops, *vPatchOp)
 				addedVolumeMap[m.Name] = v
 			}
 			vmPatchOp := addVolumeMount(pod, m)
