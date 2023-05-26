@@ -382,10 +382,9 @@ func addHadoopConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchO
 		}
 		patchOps = append(patchOps, *cmvPatchOp)
 		vmPatchOp := addConfigMapVolumeMount(pod, config.HadoopConfigMapVolumeName, config.DefaultHadoopConfDir)
-		if vmPatchOp == nil {
-			return nil
+		if vmPatchOp != nil {
+			patchOps = append(patchOps, *vmPatchOp)
 		}
-		patchOps = append(patchOps, *vmPatchOp)
 		envPatchOp := addEnvironmentVariable(pod, config.HadoopConfDirEnvVar, config.DefaultHadoopConfDir)
 		if envPatchOp == nil {
 			return nil
